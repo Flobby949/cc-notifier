@@ -1,0 +1,34 @@
+{
+  "name": "claude-code-notifier",
+  "version": "1.0.0",
+  "description": "Webhook notifications for Claude Code task completion",
+  "main": "dist/index.js",
+  "bin": {
+    "cc-notify": "dist/index.js",
+    "cc-session": "dist/session-tracker.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "install-hooks": "node scripts/install-hooks.js",
+    "test": "node dist/index.js < test/sample-input.json"
+  },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "notification",
+    "webhook",
+    "slack",
+    "discord",
+    "telegram"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
