@@ -1,82 +1,84 @@
-# Claude Code Webhook 通知器 - 完整指南
+# Claude Code Notifier
 
-支持 Slack、Discord、Telegram、钉钉、飞书、企业微信等多种消息服务。
+Claude Code 任务完成通知器，支持多平台系统通知和多种 Webhook 服务。
 
----
+## 特性
 
-## 🚀 快速开始
+- **跨平台系统通知**：macOS / Windows / Linux
+- **点击激活终端**：支持 Warp、iTerm、Terminal、Windows Terminal、VS Code
+- **语音播报**：macOS / Windows
+- **多种 Webhook**：Slack、Discord、Telegram、钉钉、飞书、企业微信
+- **任务耗时统计**：精确计算单次任务耗时
+- **日志自动清理**：最多保留 500 条记录
 
-### 方式一：使用预编译脚本（推荐）
+## 目录结构
 
-如果你不想配置 TypeScript 环境，可以直接使用编译后的 JavaScript：
-
-```bash
-# 1. 创建项目目录
-mkdir -p ~/.claude/notifier
-cd ~/.claude/notifier
-
-# 2. 初始化 package.json（可选，用于管理依赖）
-npm init -y
-
-# 3. 将上面的 TypeScript 代码保存为 index.ts，然后编译
-npx tsc index.ts --outDir dist --target ES2020 --module commonjs --esModuleInterop
-
-# 4. 添加执行权限
-chmod +x dist/index.js
-
-# 5. 配置 Claude Code hooks
+```
+src/
+├── index.ts           # 主入口
+├── types.ts           # 类型定义
+├── config.ts          # 配置管理
+├── logger.ts          # 日志模块
+├── session.ts         # 会话管理
+├── session-tracker.ts # 会话追踪器（hook）
+├── notification/      # 系统通知模块
+│   ├── system.ts      # 系统通知（跨平台）
+│   ├── terminal.ts    # 终端检测和激活
+│   └── voice.ts       # 语音播报
+└── webhook/           # Webhook 模块
+    ├── http.ts        # HTTP 请求
+    └── providers/     # 各平台实现
+        ├── slack.ts
+        ├── discord.ts
+        ├── telegram.ts
+        ├── dingtalk.ts
+        ├── feishu.ts
+        ├── wecom.ts
+        └── custom.ts
 ```
 
-### 方式二：从源码构建
+## 安装
 
 ```bash
-# 1. 创建项目
-mkdir -p ~/.claude/notifier
+# 克隆或创建项目
 cd ~/.claude/notifier
 
-# 2. 创建文件结构
-mkdir -p src dist scripts test
-
-# 3. 将以下文件放到对应位置：
-#    - index.ts → src/index.ts
-#    - session-tracker.ts → src/session-tracker.ts
-#    - package.json → package.json
-#    - tsconfig.json → tsconfig.json
-
-# 4. 安装依赖
+# 安装依赖
 npm install
 
-# 5. 编译
+# 编译
 npm run build
 
-# 6. 添加执行权限
+# 添加执行权限
 chmod +x dist/index.js dist/session-tracker.js
 ```
 
----
+### macOS 额外依赖
 
-## ⚙️ 配置 Claude Code
+```bash
+# 安装 terminal-notifier（点击通知激活终端）
+brew install terminal-notifier
+```
+
+## 配置 Claude Code Hooks
 
 编辑 `~/.claude/settings.json`：
 
 ```json
 {
   "hooks": {
-    "SessionStart": [
+    "UserPromptSubmit": [
       {
-        "matcher": "",
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/notifier/dist/session-tracker.js",
-            "background": true
+            "command": "~/.claude/notifier/dist/session-tracker.js"
           }
         ]
       }
     ],
     "Stop": [
       {
-        "matcher": "",
         "hooks": [
           {
             "type": "command",
@@ -90,236 +92,104 @@ chmod +x dist/index.js dist/session-tracker.js
 }
 ```
 
----
+## 配置通知
 
-## 📝 配置 Webhook
-
-首次运行会自动创建配置文件 `~/.claude/webhook-config.json`。
-
-### 基础配置
+首次运行会自动创建配置文件 `~/.claude/webhook-config.json`：
 
 ```json
 {
   "minDuration": 10,
-  "enableMacOS": true,
+  "enableSystemNotification": true,
   "enableVoice": false,
   "enableLogging": true,
   "webhooks": []
 }
 ```
 
-**参数说明：**
-- `minDuration`: 最小通知时长（秒），低于此值不发送通知
-- `enableMacOS`: 是否启用 macOS 原生通知
-- `enableVoice`: 是否启用语音提示
-- `enableLogging`: 是否记录日志到 `~/.claude/webhook-notification.log`
+| 参数 | 说明 |
+|------|------|
+| `minDuration` | 最小通知时长（秒），低于此值不发送通知 |
+| `enableSystemNotification` | 是否启用系统通知 |
+| `enableVoice` | 是否启用语音播报 |
+| `enableLogging` | 是否记录日志 |
 
----
+## Webhook 配置
 
-## 🔗 支持的 Webhook 服务
-
-### 1. Slack
-
-**获取 Webhook URL：**
-1. 访问 https://api.slack.com/apps
-2. 创建新应用 → 选择 "From scratch"
-3. 启用 "Incoming Webhooks"
-4. 点击 "Add New Webhook to Workspace"
-5. 选择频道，复制 Webhook URL
-
-**配置示例：**
+### Slack
 
 ```json
 {
-  "webhooks": [
-    {
-      "enabled": true,
-      "url": "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXX",
-      "type": "slack"
-    }
-  ]
+  "enabled": true,
+  "url": "https://hooks.slack.com/services/T00000000/B00000000/XXXX",
+  "type": "slack"
 }
 ```
 
-**效果：**
-- 格式化的消息卡片
-- 颜色编码（成功=绿色，错误=红色）
-- 包含会话 ID、耗时、项目路径等信息
-
----
-
-### 2. Discord
-
-**获取 Webhook URL：**
-1. 打开 Discord 服务器设置
-2. 集成 → Webhooks → 新建 Webhook
-3. 选择频道，复制 Webhook URL
-
-**配置示例：**
+### Discord
 
 ```json
 {
-  "webhooks": [
-    {
-      "enabled": true,
-      "url": "https://discord.com/api/webhooks/1234567890/abcdefghijklmnopqrstuvwxyz",
-      "type": "discord"
-    }
-  ]
+  "enabled": true,
+  "url": "https://discord.com/api/webhooks/1234567890/abcdefg",
+  "type": "discord"
 }
 ```
 
-**效果：**
-- Rich Embed 消息
-- 彩色边框
-- 时间戳
-
----
-
-### 3. Telegram
-
-**获取 Bot Token 和 Chat ID：**
-
-1. **创建 Bot：**
-   - 在 Telegram 中找到 @BotFather
-   - 发送 `/newbot`
-   - 按提示设置名称，获取 token
-
-2. **获取 Chat ID：**
-   ```bash
-   # 方法1：与 bot 对话后访问
-   curl https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates
-   
-   # 方法2：使用 @userinfobot 获取自己的 Chat ID
-   ```
-
-**配置示例：**
+### Telegram
 
 ```json
 {
-  "webhooks": [
-    {
-      "enabled": true,
-      "url": "https://api.telegram.org/bot",
-      "type": "telegram",
-      "token": "1234567890:ABCdefGHIjklMNOpqrsTUVwxyz",
-      "chatId": "123456789"
-    }
-  ]
+  "enabled": true,
+  "url": "https://api.telegram.org/bot",
+  "type": "telegram",
+  "token": "1234567890:ABCdefGHIjklMNOpqrsTUVwxyz",
+  "chatId": "123456789"
 }
 ```
 
-**效果：**
-- Markdown 格式消息
-- 即时推送到手机
-
----
-
-### 4. 钉钉（DingTalk）
-
-**获取 Webhook URL：**
-1. 打开钉钉群 → 群设置 → 智能群助手
-2. 添加机器人 → 自定义
-3. 设置安全设置（推荐使用加签）
-4. 复制 Webhook URL 和密钥
-
-**配置示例（加签）：**
+### 钉钉
 
 ```json
 {
-  "webhooks": [
-    {
-      "enabled": true,
-      "url": "https://oapi.dingtalk.com/robot/send?access_token=XXXXXXXXXX",
-      "type": "dingtalk",
-      "secret": "SECxxxxxxxxxxxxxxxxxxxxxxxxxx"
-    }
-  ]
+  "enabled": true,
+  "url": "https://oapi.dingtalk.com/robot/send?access_token=XXXX",
+  "type": "dingtalk",
+  "secret": "SECxxxxxxxxxx"
 }
 ```
 
-**配置示例（关键词）：**
-
-如果使用关键词验证，确保消息中包含关键词（如 "Claude"）：
+### 飞书
 
 ```json
 {
-  "webhooks": [
-    {
-      "enabled": true,
-      "url": "https://oapi.dingtalk.com/robot/send?access_token=XXXXXXXXXX",
-      "type": "dingtalk"
-    }
-  ]
+  "enabled": true,
+  "url": "https://open.feishu.cn/open-apis/bot/v2/hook/xxxx",
+  "type": "feishu",
+  "secret": "xxxxxxxx"
 }
 ```
 
----
-
-### 5. 飞书（Lark/Feishu）
-
-**获取 Webhook URL：**
-1. 打开飞书群 → 设置 → 群机器人
-2. 添加机器人 → 自定义机器人
-3. 复制 Webhook URL
-
-**配置示例：**
+### 企业微信
 
 ```json
 {
-  "webhooks": [
-    {
-      "enabled": true,
-      "url": "https://open.feishu.cn/open-apis/bot/v2/hook/xxxxxxxxxxxxxxxxx",
-      "type": "feishu",
-      "secret": "xxxxxxxxxxxxxxxx"
-    }
-  ]
+  "enabled": true,
+  "url": "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxxx",
+  "type": "wecom"
 }
 ```
 
----
-
-### 6. 企业微信（WeCom）
-
-**获取 Webhook URL：**
-1. 打开企业微信群 → 群设置 → 群机器人
-2. 添加机器人
-3. 复制 Webhook URL
-
-**配置示例：**
+### 自定义 Webhook
 
 ```json
 {
-  "webhooks": [
-    {
-      "enabled": true,
-      "url": "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-      "type": "wecom"
-    }
-  ]
+  "enabled": true,
+  "url": "https://your-server.com/webhook",
+  "type": "custom"
 }
 ```
 
----
-
-### 7. 自定义 Webhook
-
-对于其他服务，可以使用 `custom` 类型，会发送标准 JSON 格式：
-
-```json
-{
-  "webhooks": [
-    {
-      "enabled": true,
-      "url": "https://your-server.com/webhook",
-      "type": "custom"
-    }
-  ]
-}
-```
-
-**发送的 JSON 格式：**
+发送的 JSON 格式：
 
 ```json
 {
@@ -327,31 +197,25 @@ chmod +x dist/index.js dist/session-tracker.js
   "sessionId": "abc123...",
   "stopReason": "completed",
   "duration": 45,
-  "projectPath": "/Users/xxx/project",
+  "projectPath": "/path/to/project",
   "timestamp": "2024-12-08T10:30:00.000Z"
 }
 ```
 
----
-
-## 🎨 高级配置
-
-### 多个 Webhook
-
-可以同时配置多个服务：
+## 多 Webhook 配置示例
 
 ```json
 {
+  "minDuration": 10,
+  "enableSystemNotification": true,
+  "enableVoice": false,
+  "enableLogging": true,
   "webhooks": [
     {
       "enabled": true,
-      "url": "https://hooks.slack.com/services/...",
-      "type": "slack"
-    },
-    {
-      "enabled": true,
-      "url": "https://discord.com/api/webhooks/...",
-      "type": "discord"
+      "url": "https://oapi.dingtalk.com/robot/send?access_token=XXXX",
+      "type": "dingtalk",
+      "secret": "SECxxxxxxxxxx"
     },
     {
       "enabled": true,
@@ -364,151 +228,92 @@ chmod +x dist/index.js dist/session-tracker.js
 }
 ```
 
-### 项目级配置
+## 平台支持
 
-在项目根目录创建 `.claude/webhook-config.json` 覆盖全局配置：
+### 系统通知
 
-```json
-{
-  "minDuration": 30,
-  "webhooks": [
-    {
-      "enabled": true,
-      "url": "https://hooks.slack.com/services/PROJECT_SPECIFIC",
-      "type": "slack"
-    }
-  ]
-}
-```
+| 平台 | 实现方式 | 点击激活终端 |
+|------|----------|--------------|
+| macOS | terminal-notifier | Warp / iTerm / Terminal |
+| Windows | node-notifier | Windows Terminal / VS Code |
+| Linux | node-notifier | 不支持 |
 
-### 条件通知
+### 语音播报
 
-可以通过修改脚本实现条件通知，例如：
+| 平台 | 实现方式 |
+|------|----------|
+| macOS | `say` 命令 |
+| Windows | PowerShell SpeechSynthesizer |
+| Linux | 不支持 |
 
-```typescript
-// 只在错误时通知
-if (!session.stopReason.includes('error')) {
-  return;
-}
-
-// 只在工作时间通知
-const hour = new Date().getHours();
-if (hour < 9 || hour > 18) {
-  return;
-}
-
-// 只在特定项目通知
-if (!session.projectPath?.includes('/important-project/')) {
-  return;
-}
-```
-
----
-
-## 📊 消息格式示例
-
-### Slack 消息
-
-```
-✅ Claude Code 任务完成
-
-会话 ID        状态
-abc12345...    completed
-
-耗时           项目路径
-45 秒          /Users/xxx/my-project
-```
-
-### Discord 消息
-
-```
-✅ Claude Code 任务完成
-
-会话 ID: abc12345...
-状态: completed
-耗时: 45 秒
-项目路径: /Users/xxx/my-project
-```
-
-### Telegram 消息
-
-```
-✅ Claude Code 任务完成
-
-会话 ID: abc12345...
-状态: completed
-耗时: 45 秒
-项目: /Users/xxx/my-project
-```
-
----
-
-## 🧪 测试
-
-### 测试 macOS 通知
+## 测试
 
 ```bash
+# 测试通知
 echo '{"session_id":"test123","stop_reason":"completed"}' | ~/.claude/notifier/dist/index.js
-```
 
-### 测试 Webhook
-
-创建测试文件 `test-input.json`：
-
-```json
-{
-  "session_id": "test-session-123",
-  "stop_reason": "completed",
-  "project_path": "/Users/xxx/test-project"
-}
-```
-
-运行测试：
-
-```bash
-cat test-input.json | ~/.claude/notifier/dist/index.js
-```
-
-### 检查日志
-
-```bash
+# 查看日志
 tail -f ~/.claude/webhook-notification.log
 ```
 
----
+## 扩展开发
 
-## 🔧 故障排查
+### 添加新的 Webhook 平台
+
+1. 在 `src/webhook/providers/` 下创建新文件，如 `pushover.ts`
+2. 实现发送函数：
+
+```typescript
+import { WebhookConfig, SessionData } from '../../types';
+import { sendWebhook } from '../http';
+
+export async function sendPushoverNotification(webhook: WebhookConfig, session: SessionData): Promise<void> {
+  // 实现发送逻辑
+}
+```
+
+3. 在 `src/webhook/index.ts` 中注册：
+
+```typescript
+import { sendPushoverNotification } from './providers/pushover';
+
+const webhookSenders = {
+  // ...
+  pushover: sendPushoverNotification
+};
+```
+
+4. 在 `src/types.ts` 中添加类型：
+
+```typescript
+export type WebhookType = '...' | 'pushover';
+```
+
+### 添加新的通知方式
+
+在 `src/notification/` 下创建新模块，然后在 `index.ts` 中导出。
+
+## 故障排查
 
 ### Webhook 发送失败
 
-1. **检查 URL 是否正确**
-   ```bash
-   # 手动测试 Slack webhook
-   curl -X POST -H 'Content-Type: application/json' \
-     -d '{"text":"Test message"}' \
-     YOUR_WEBHOOK_URL
-   ```
+```bash
+# 查看日志
+tail -20 ~/.claude/webhook-notification.log
 
-2. **检查网络连接**
-   ```bash
-   ping hooks.slack.com
-   ```
-
-3. **查看错误日志**
-   ```bash
-   tail -20 ~/.claude/webhook-notification.log
-   ```
+# 手动测试
+curl -X POST -H 'Content-Type: application/json' \
+  -d '{"text":"Test"}' \
+  YOUR_WEBHOOK_URL
+```
 
 ### 钉钉签名失败
 
-确保时间同步正确：
+确保系统时间同步：
 
 ```bash
 # macOS
 sudo sntp -sS time.apple.com
-
-# 检查时间
-date
 ```
 
 ### 权限问题
@@ -517,132 +322,6 @@ date
 chmod +x ~/.claude/notifier/dist/*.js
 ```
 
-### Node.js 版本
+## License
 
-确保 Node.js >= 16：
-
-```bash
-node --version
-```
-
----
-
-## 🎯 使用场景
-
-### 1. 长时间任务提醒
-
-```json
-{
-  "minDuration": 60,
-  "webhooks": [...]
-}
-```
-
-适合：大型项目构建、测试套件运行
-
-### 2. 远程工作通知
-
-配置 Telegram，在手机上接收通知：
-
-```json
-{
-  "enableMacOS": false,
-  "webhooks": [
-    {
-      "enabled": true,
-      "type": "telegram",
-      ...
-    }
-  ]
-}
-```
-
-### 3. 团队协作通知
-
-配置 Slack/钉钉/飞书，团队成员共同关注：
-
-```json
-{
-  "webhooks": [
-    {
-      "enabled": true,
-      "url": "https://hooks.slack.com/services/TEAM_CHANNEL",
-      "type": "slack"
-    }
-  ]
-}
-```
-
-### 4. 错误监控
-
-修改脚本，只在错误时发送紧急通知：
-
-```typescript
-// 在 main() 函数中添加
-if (session.stopReason.includes('error')) {
-  // 发送紧急通知
-  await sendUrgentNotification(session);
-}
-```
-
----
-
-## 🔐 安全建议
-
-1. **不要提交 Webhook URL 到代码仓库**
-   
-   添加到 `.gitignore`：
-   ```
-   .claude/webhook-config.json
-   ```
-
-2. **使用环境变量**
-
-   ```bash
-   export SLACK_WEBHOOK_URL="https://..."
-   ```
-
-   在脚本中读取：
-   ```typescript
-   const url = process.env.SLACK_WEBHOOK_URL || webhook.url;
-   ```
-
-3. **定期轮换密钥**
-
-   特别是 Telegram bot token、钉钉/飞书签名密钥
-
-4. **限制 Webhook 权限**
-
-   在各平台设置中，仅授予必要的权限
-
----
-
-## 📚 扩展阅读
-
-- [Slack Incoming Webhooks](https://api.slack.com/messaging/webhooks)
-- [Discord Webhooks Guide](https://discord.com/developers/docs/resources/webhook)
-- [Telegram Bot API](https://core.telegram.org/bots/api)
-- [钉钉机器人文档](https://open.dingtalk.com/document/robots/custom-robot-access)
-- [飞书机器人文档](https://open.feishu.cn/document/ukTMukTMukTM/ucTM5YjL3ETO24yNxkjN)
-
----
-
-## 💡 贡献想法
-
-欢迎提供更多集成方案：
-
-- Pushover、Pushbullet
-- IFTTT、Zapier
-- Home Assistant
-- Grafana、Prometheus
-- 自建服务器监控
-
----
-
-## 📄 许可
-
-MIT License
-
----
-
-**享受更高效的 vibecoding 体验！** 🎵✨
+MIT
