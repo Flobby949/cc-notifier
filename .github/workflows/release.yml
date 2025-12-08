@@ -35,12 +35,20 @@ jobs:
           zip -r cc-notifier-dist.zip cc-notifier/
           tar -czvf cc-notifier-dist.tar.gz cc-notifier/
 
+      - name: Extract changelog for current version
+        id: changelog
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "content<<EOF" >> $GITHUB_OUTPUT
+          awk -v ver="$VERSION" 'BEGIN{flag=0} $0 ~ "^## \\[" ver "\\]"{flag=1; next} /^## \[/{flag=0} flag' CHANGELOG.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             cc-notifier-dist.zip
             cc-notifier-dist.tar.gz
-          generate_release_notes: true
+          body: ${{ steps.changelog.outputs.content }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
