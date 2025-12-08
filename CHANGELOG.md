@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.5] - 2025-12-08
+
+### Added
+
+- CLI 工具 `ccntf`，支持一键安装配置、测试通知、管理 hooks
+- `ccntf hooks install` 自动安装 Claude hooks 配置
+- `ccntf hooks print` 打印可复制的 hooks 配置
+- `ccntf init` 初始化 webhook 配置文件
+- `ccntf test` 测试通知功能
+- `ccntf check` 检查 hooks 配置是否正确
+- `ccntf clean` 清理日志和会话文件（保留活跃会话）
+- `setup.sh` / `setup.bat` 交互式安装脚本
+
+### Changed
+
+- 重构 README，新增快速开始章节，详细内容折叠显示
+- Release 打包包含安装脚本
+
 ## [0.0.4] - 2025-12-08
 
 ### Added
@@ -12,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 统一入口 `hook.js`，简化 hooks 配置
 - Notification hook 支持（系统通知触发 webhook）
 - 会话文件自动清理功能
+- idle 通知超过 5 分钟后自动抑制
 
 ### Fixed
 
@@ -53,6 +72,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - 模块化重构，提升代码可维护性
 
+[0.0.5]: https://github.com/Flobby949/cc-notifier/compare/v0.0.4...v0.0.5
 [0.0.4]: https://github.com/Flobby949/cc-notifier/compare/v0.0.3...v0.0.4
 [0.0.3]: https://github.com/Flobby949/cc-notifier/compare/v0.0.2...v0.0.3
 [0.0.2]: https://github.com/Flobby949/cc-notifier/compare/v0.0.1...v0.0.2

@@ -64,4 +64,4 @@ export function configExists(): boolean {
   return fs.existsSync(CONFIG_PATH);
 }
 
-export { CONFIG_PATH };
+export { CONFIG_PATH, DEFAULT_CONFIG };

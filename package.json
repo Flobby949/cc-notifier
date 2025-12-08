@@ -4,6 +4,7 @@
   "description": "Webhook notifications for Claude Code task completion",
   "main": "dist/index.js",
   "bin": {
+    "ccntf": "dist/cli.js",
     "cc-hook": "dist/hook.js",
     "cc-notify": "dist/index.js",
     "cc-session": "dist/session-tracker.js"
