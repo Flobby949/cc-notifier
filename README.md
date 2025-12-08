@@ -535,6 +535,10 @@ sudo sntp -sS time.apple.com
 chmod +x ~/.claude/cc-notifier/dist/*.js
 ```
 
+## 参考文档
+
+- [Claude Code Hooks 官方文档](https://code.claude.com/docs/en/hooks)
+
 ## License
 
 MIT
