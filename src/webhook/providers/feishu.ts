@@ -9,9 +9,14 @@ import { sendWebhook } from '../http';
 export async function sendFeishuNotification(webhook: WebhookConfig, session: SessionData): Promise<void> {
   const emoji = session.stopReason.includes('error') ? '⚠️' : '✅';
 
-  let message = `${emoji} **Claude Code 任务完成**\n`;
+  // 从 stopReason 中提取标题（支持 Notification hook 传递的格式）
+  const titleMatch = session.stopReason.match(/^(.+?):/);
+  const title = titleMatch ? titleMatch[1] : '任务完成';
+  const status = titleMatch ? session.stopReason.substring(titleMatch[0].length).trim() : session.stopReason;
+
+  let message = `${emoji} **Claude Code ${title}**\n`;
   message += `会话 ID: ${session.sessionId.substring(0, 16)}\n`;
-  message += `状态: ${session.stopReason}\n`;
+  message += `状态: ${status}\n`;
 
   if (session.duration) {
     message += `耗时: ${session.duration} 秒\n`;

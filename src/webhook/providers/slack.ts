@@ -9,9 +9,14 @@ export async function sendSlackNotification(webhook: WebhookConfig, session: Ses
   const color = session.stopReason.includes('error') ? 'danger' : 'good';
   const emoji = session.stopReason.includes('error') ? '⚠️' : '✅';
 
+  // 从 stopReason 中提取标题（支持 Notification hook 传递的格式）
+  const titleMatch = session.stopReason.match(/^(.+?):/);
+  const title = titleMatch ? titleMatch[1] : '任务完成';
+  const status = titleMatch ? session.stopReason.substring(titleMatch[0].length).trim() : session.stopReason;
+
   const fields: any[] = [
     { title: '会话 ID', value: session.sessionId.substring(0, 16), short: true },
-    { title: '状态', value: session.stopReason, short: true }
+    { title: '状态', value: status, short: true }
   ];
 
   if (session.duration) {
@@ -23,7 +28,7 @@ export async function sendSlackNotification(webhook: WebhookConfig, session: Ses
   }
 
   const payload = {
-    text: `${emoji} Claude Code 任务完成`,
+    text: `${emoji} Claude Code ${title}`,
     attachments: [{
       color: color,
       fields: fields,
