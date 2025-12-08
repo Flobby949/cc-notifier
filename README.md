@@ -40,26 +40,196 @@ src/
 
 ## 安装
 
+### 前置要求
+
+- [Node.js](https://nodejs.org/) >= 18.0.0
+- macOS 用户推荐安装 [Homebrew](https://brew.sh/)
+
+---
+
+### 快速安装（推荐）
+
+从 [GitHub Releases](https://github.com/Flobby949/cc-notifier/releases) 下载预编译包，无需手动编译。
+
+#### macOS / Linux
+
 ```bash
-# 克隆或创建项目
-cd ~/.claude/notifier
+# 创建目录
+mkdir -p ~/.claude/cc-notifier && cd ~/.claude/cc-notifier
 
-# 安装依赖
-npm install
-
-# 编译
-npm run build
+# 下载最新版本（以 v1.0.0 为例，请替换为实际版本号）
+curl -L https://github.com/Flobby949/cc-notifier/releases/latest/download/cc-notifier-dist.tar.gz | tar -xz
 
 # 添加执行权限
 chmod +x dist/index.js dist/session-tracker.js
 ```
 
-### macOS 额外依赖
+macOS 用户推荐安装 `terminal-notifier`（点击通知可激活终端）：
 
 ```bash
-# 安装 terminal-notifier（点击通知激活终端）
 brew install terminal-notifier
 ```
+
+#### Windows
+
+1. 从 [Releases 页面](https://github.com/Flobby949/cc-notifier/releases) 下载 `cc-notifier-dist.zip`
+2. 解压到 `%USERPROFILE%\.claude\cc-notifier` 目录
+3. 确保目录结构为 `%USERPROFILE%\.claude\cc-notifier\dist\index.js`
+
+或使用 PowerShell：
+
+```powershell
+# 创建目录
+mkdir $env:USERPROFILE\.claude\cc-notifier -Force
+cd $env:USERPROFILE\.claude\cc-notifier
+
+# 下载并解压（以 v1.0.0 为例，请替换为实际版本号）
+Invoke-WebRequest -Uri "https://github.com/Flobby949/cc-notifier/releases/latest/download/cc-notifier-dist.zip" -OutFile "cc-notifier-dist.zip"
+Expand-Archive -Path "cc-notifier-dist.zip" -DestinationPath "." -Force
+Remove-Item "cc-notifier-dist.zip"
+```
+
+---
+
+### 源码安装
+
+如果你需要修改源码或参与开发，可以选择源码安装。
+
+<details>
+<summary>macOS 源码安装</summary>
+
+#### 1. 克隆项目
+
+```bash
+# 创建 .claude 目录（如果不存在）
+mkdir -p ~/.claude
+
+# 克隆项目
+cd ~/.claude
+git clone https://github.com/Flobby949/cc-notifier.git
+
+# 进入项目目录
+cd cc-notifier
+```
+
+#### 2. 安装依赖并编译
+
+```bash
+# 安装依赖
+npm install
+
+# 编译 TypeScript
+npm run build
+```
+
+#### 3. 添加执行权限
+
+```bash
+chmod +x dist/index.js dist/session-tracker.js
+```
+
+#### 4. 安装 terminal-notifier（推荐）
+
+`terminal-notifier` 可以让你点击通知时自动激活终端窗口：
+
+```bash
+brew install terminal-notifier
+```
+
+> **注意**：如果不安装 `terminal-notifier`，系统通知仍然可以正常工作，但点击通知不会激活终端。
+
+</details>
+
+<details>
+<summary>Windows 源码安装</summary>
+
+#### 1. 克隆项目
+
+打开 PowerShell 或 CMD：
+
+```powershell
+# 创建 .claude 目录（如果不存在）
+mkdir %USERPROFILE%\.claude 2>nul
+
+# 克隆项目
+cd %USERPROFILE%\.claude
+git clone https://github.com/Flobby949/cc-notifier.git
+
+# 进入项目目录
+cd cc-notifier
+```
+
+或者使用 Git Bash：
+
+```bash
+# 创建 .claude 目录（如果不存在）
+mkdir -p ~/.claude
+
+# 克隆项目
+cd ~/.claude
+git clone https://github.com/Flobby949/cc-notifier.git
+
+# 进入项目目录
+cd cc-notifier
+```
+
+#### 2. 安装依赖并编译
+
+```powershell
+# 安装依赖
+npm install
+
+# 编译 TypeScript
+npm run build
+```
+
+#### 3. 验证安装
+
+```powershell
+# 检查编译后的文件是否存在
+dir dist\*.js
+```
+
+> **注意**：Windows 不需要额外的执行权限设置，Node.js 脚本可以直接运行。
+
+</details>
+
+<details>
+<summary>Linux 源码安装</summary>
+
+#### 1. 克隆项目
+
+```bash
+# 创建 .claude 目录（如果不存在）
+mkdir -p ~/.claude
+
+# 克隆项目
+cd ~/.claude
+git clone https://github.com/Flobby949/cc-notifier.git
+
+# 进入项目目录
+cd cc-notifier
+```
+
+#### 2. 安装依赖并编译
+
+```bash
+# 安装依赖
+npm install
+
+# 编译 TypeScript
+npm run build
+```
+
+#### 3. 添加执行权限
+
+```bash
+chmod +x dist/index.js dist/session-tracker.js
+```
+
+> **注意**：Linux 系统通知依赖 `notify-send`，大多数桌面发行版已预装。如未安装，请使用包管理器安装 `libnotify-bin`（Debian/Ubuntu）或 `libnotify`（Fedora/Arch）。
+
+</details>
 
 ## 配置 Claude Code Hooks
 
@@ -73,7 +243,7 @@ brew install terminal-notifier
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/notifier/dist/session-tracker.js"
+            "command": "~/.claude/cc-notifier/dist/session-tracker.js"
           }
         ]
       }
@@ -83,7 +253,7 @@ brew install terminal-notifier
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/notifier/dist/index.js",
+            "command": "~/.claude/cc-notifier/dist/index.js",
             "background": false
           }
         ]
@@ -253,7 +423,7 @@ brew install terminal-notifier
 
 ```bash
 # 测试通知
-echo '{"session_id":"test123","stop_reason":"completed"}' | ~/.claude/notifier/dist/index.js
+echo '{"session_id":"test123","stop_reason":"completed"}' | ~/.claude/cc-notifier/dist/index.js
 
 # 查看日志
 tail -f ~/.claude/webhook-notification.log
@@ -322,7 +492,7 @@ sudo sntp -sS time.apple.com
 ### 权限问题
 
 ```bash
-chmod +x ~/.claude/notifier/dist/*.js
+chmod +x ~/.claude/cc-notifier/dist/*.js
 ```
 
 ## License
