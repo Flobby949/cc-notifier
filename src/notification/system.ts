@@ -9,11 +9,13 @@ import { platform, getTerminalApp, macOSBundleIds, activateWindowsTerminal } fro
 
 /**
  * 发送系统通知（跨平台入口）
+ * @param session 会话数据
+ * @param customTitle 自定义标题（可选）
  */
-export function sendSystemNotification(session: SessionData): void {
-  const title = session.stopReason.includes('error') ? '⚠️ 任务完成（有错误）' : '✅ 任务完成';
+export function sendSystemNotification(session: SessionData, customTitle?: string): void {
+  const title = customTitle || (session.stopReason.includes('error') ? '⚠️ 任务完成（有错误）' : '✅ 任务完成');
   const durationText = session.duration ? `耗时 ${session.duration} 秒` : '';
-  const message = `会话: ${session.sessionId.substring(0, 8)}... ${durationText}`;
+  const message = customTitle ? session.stopReason : `会话: ${session.sessionId.substring(0, 8)}... ${durationText}`;
 
   if (platform === 'darwin') {
     sendMacOSNotification(title, message, session.stopReason.includes('error'));

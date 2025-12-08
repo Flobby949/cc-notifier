@@ -18,6 +18,8 @@ const DEFAULT_CONFIG: NotificationConfig = {
   autoActivateWindow: false,
   enableSessionCleanup: true,
   sessionCleanupDays: 7,
+  enableNotificationHook: true,
+  notificationHookTypes: ['permission_prompt', 'idle_prompt'],
   webhooks: [
     {
       enabled: false,

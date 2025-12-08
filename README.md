@@ -274,6 +274,16 @@ chmod +x dist/index.js dist/session-tracker.js
           }
         ]
       }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/cc-notifier/dist/notification-hook.js"
+          }
+        ]
+      }
     ]
   }
 }
@@ -318,6 +328,16 @@ chmod +x dist/index.js dist/session-tracker.js
           }
         ]
       }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node %USERPROFILE%\\.claude\\cc-notifier\\dist\\notification-hook.js"
+          }
+        ]
+      }
     ]
   }
 }
@@ -336,6 +356,8 @@ chmod +x dist/index.js dist/session-tracker.js
   "autoActivateWindow": false,
   "enableSessionCleanup": true,
   "sessionCleanupDays": 7,
+  "enableNotificationHook": true,
+  "notificationHookTypes": ["permission_prompt", "idle_prompt"],
   "webhooks": []
 }
 ```
@@ -349,6 +371,8 @@ chmod +x dist/index.js dist/session-tracker.js
 | `autoActivateWindow` | 任务完成后是否自动激活终端窗口 |
 | `enableSessionCleanup` | 是否启用会话文件自动清理 |
 | `sessionCleanupDays` | 保留最近多少天的会话文件（默认 7 天） |
+| `enableNotificationHook` | 是否启用 Notification hook（权限请求等通知） |
+| `notificationHookTypes` | 需要通知的事件类型，可选值：`permission_prompt`（权限请求）、`idle_prompt`（等待输入）、`auth_success`（认证成功）、`elicitation_dialog`（MCP 输入） |
 
 ## Webhook 配置
 
