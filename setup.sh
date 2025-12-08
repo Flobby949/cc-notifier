@@ -58,6 +58,17 @@ case $choice in
         fi
         echo ""
         echo "模式: 快速安装"
+
+        # 检查 npm 是否安装
+        if ! command -v npm &> /dev/null; then
+            echo "✗ 未找到 npm"
+            exit 1
+        fi
+
+        # 安装运行时依赖
+        echo ""
+        echo "安装运行时依赖..."
+        npm install --omit=dev
         ;;
     2)
         echo ""

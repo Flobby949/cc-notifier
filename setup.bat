@@ -64,6 +64,19 @@ if "!choice!"=="1" (
     )
     echo.
     echo 模式: 快速安装
+
+    :: 检查 npm 是否安装
+    where npm >nul 2>nul
+    if !errorlevel! neq 0 (
+        echo X 未找到 npm
+        pause
+        exit /b 1
+    )
+
+    :: 安装运行时依赖
+    echo.
+    echo 安装运行时依赖...
+    call npm install --omit=dev
 ) else if "!choice!"=="2" (
     echo.
     echo 模式: 完整构建
