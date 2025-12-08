@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 
 /**
- * Claude Code 会话追踪器
- * 记录会话开始时间，用于计算任务耗时
+ * Claude Code 任务追踪器
+ * 记录每次任务（用户提问）的开始时间，用于计算单次任务耗时
+ *
+ * 配置为 Notification hook，在用户每次提交问题时触发
  */
 
 import * as fs from 'fs';
@@ -36,14 +38,15 @@ function main(): void {
       return;
     }
     
-    // 记录会话开始时间
+    // 每次用户提交问题时，更新任务开始时间
+    // 这样计算的耗时是单次任务的耗时，而不是整个会话的耗时
     const sessionFile = path.join(SESSION_DIR, `${sessionId}.json`);
     const sessionData = {
       sessionId,
-      startTime: Math.floor(Date.now() / 1000),
+      taskStartTime: Math.floor(Date.now() / 1000),  // 任务开始时间
       projectPath: data.project_path || process.cwd()
     };
-    
+
     fs.writeFileSync(sessionFile, JSON.stringify(sessionData, null, 2));
   } catch (error) {
     console.error('处理会话数据失败:', error);

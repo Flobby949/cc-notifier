@@ -110,27 +110,30 @@ function getSessionData(input: string): SessionData {
     const sessionId = data.session_id || 'unknown';
     const stopReason = data.stop_reason || 'completed';
     
-    // 读取会话开始时间
+    // 读取任务开始时间（每次用户提问时记录）
     const sessionFile = path.join(SESSION_DIR, `${sessionId}.json`);
     let startTime: number | undefined;
     let duration: number | undefined;
-    
+    let projectPath: string | undefined = data.project_path;
+
     if (fs.existsSync(sessionFile)) {
       const sessionData = JSON.parse(fs.readFileSync(sessionFile, 'utf-8'));
-      startTime = sessionData.startTime;
+      startTime = sessionData.taskStartTime;  // 使用任务开始时间
       if (startTime) {
         duration = Math.floor(Date.now() / 1000 - startTime);
       }
-      // 清理会话文件
-      fs.unlinkSync(sessionFile);
+      // 从会话文件读取项目路径（如果 Stop hook 没有提供）
+      if (!projectPath && sessionData.projectPath) {
+        projectPath = sessionData.projectPath;
+      }
     }
-    
+
     return {
       sessionId,
       stopReason,
       startTime,
       duration,
-      projectPath: data.project_path,
+      projectPath,
       toolCalls: data.tool_calls
     };
   } catch (error) {
@@ -144,17 +147,41 @@ function getSessionData(input: string): SessionData {
 
 // ============= macOS 通知 =============
 
+function getTerminalApp(): string {
+  // 检测当前终端应用
+  const termProgram = process.env.TERM_PROGRAM || '';
+
+  if (termProgram.includes('Warp')) {
+    return 'Warp';
+  } else if (termProgram.includes('iTerm')) {
+    return 'iTerm';
+  } else if (termProgram.includes('Apple_Terminal') || termProgram === '') {
+    return 'Terminal';
+  }
+
+  // 默认返回 Terminal
+  return 'Terminal';
+}
+
 function sendMacOSNotification(session: SessionData): void {
   const title = session.stopReason.includes('error') ? '⚠️ 任务完成（有错误）' : '✅ 任务完成';
   const durationText = session.duration ? `耗时 ${session.duration} 秒` : '';
-  const subtitle = `会话: ${session.sessionId.substring(0, 8)}... ${durationText}`;
+  const message = `会话: ${session.sessionId.substring(0, 8)}... ${durationText}`;
   const sound = session.stopReason.includes('error') ? 'Basso' : 'Glass';
-  
+  const terminalApp = getTerminalApp();
+
   try {
-    const command = `osascript -e 'display notification "Claude Code 任务已完成" with title "${title}" subtitle "${subtitle}" sound name "${sound}"'`;
+    // 使用 terminal-notifier，点击后激活对应的终端窗口
+    const command = `terminal-notifier -title "${title}" -message "${message}" -sound "${sound}" -activate "com.${terminalApp === 'Warp' ? 'warp.Warp-Stable' : terminalApp === 'iTerm' ? 'googlecode.iterm2' : 'apple.Terminal'}"`;
     execSync(command);
   } catch (error) {
-    console.error('macOS 通知发送失败:', error);
+    // 如果 terminal-notifier 失败，回退到原生通知
+    try {
+      const fallbackCommand = `osascript -e 'display notification "${message}" with title "${title}" sound name "${sound}"'`;
+      execSync(fallbackCommand);
+    } catch (fallbackError) {
+      console.error('macOS 通知发送失败:', fallbackError);
+    }
   }
 }
 
@@ -298,15 +325,12 @@ async function sendDingTalkNotification(webhook: WebhookConfig, session: Session
   const emoji = session.stopReason.includes('error') ? '⚠️' : '✅';
   
   let message = `${emoji} **Claude Code 任务完成**\n\n`;
-  message += `> 会话 ID: ${session.sessionId.substring(0, 16)}\n`;
-  message += `> 状态: ${session.stopReason}\n`;
-  
-  if (session.duration) {
-    message += `> 耗时: ${session.duration} 秒\n`;
-  }
-  
+  message += `> **会话 ID:** ${session.sessionId.substring(0, 16)}\n>\n`;
+  message += `> **状态:** ${session.stopReason}\n>\n`;
+  message += `> **耗时:** ${session.duration ? session.duration + ' 秒' : '未知'}\n>\n`;
+
   if (session.projectPath) {
-    message += `> 项目: ${session.projectPath}\n`;
+    message += `> **项目:** ${session.projectPath}\n`;
   }
   
   const payload = {
@@ -544,7 +568,14 @@ async function main(): Promise<void> {
   
   // 记录日志
   const durationText = session.duration ? `${session.duration}s` : 'unknown';
-  log(`任务完成 - 会话: ${session.sessionId}, 耗时: ${durationText}, 状态: ${session.stopReason}`, config);
+  const logMessage = [
+    '任务完成',
+    `  会话 ID: ${session.sessionId.substring(0, 16)}`,
+    `  状态: ${session.stopReason}`,
+    `  耗时: ${durationText}`,
+    session.projectPath ? `  项目: ${session.projectPath}` : null
+  ].filter(Boolean).join('\n');
+  log(logMessage, config);
 }
 
 // 运行
