@@ -92,16 +92,35 @@ function saveConfig(config: NotificationConfig): void {
   fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
 }
 
+const MAX_LOG_LINES = 500;  // 最多保留 500 条日志记录
+
 function log(message: string, config: NotificationConfig): void {
   if (!config.enableLogging) return;
-  
+
   const logDir = path.dirname(LOG_FILE);
   if (!fs.existsSync(logDir)) {
     fs.mkdirSync(logDir, { recursive: true });
   }
-  
+
   const timestamp = new Date().toISOString();
-  fs.appendFileSync(LOG_FILE, `[${timestamp}] ${message}\n`);
+  const newEntry = `[${timestamp}] ${message}\n`;
+
+  // 追加新日志
+  fs.appendFileSync(LOG_FILE, newEntry);
+
+  // 检查并清理过多的日志
+  try {
+    const content = fs.readFileSync(LOG_FILE, 'utf-8');
+    const lines = content.split('\n').filter(line => line.trim());
+
+    if (lines.length > MAX_LOG_LINES) {
+      // 只保留最新的 MAX_LOG_LINES 条
+      const trimmedContent = lines.slice(-MAX_LOG_LINES).join('\n') + '\n';
+      fs.writeFileSync(LOG_FILE, trimmedContent);
+    }
+  } catch (error) {
+    // 清理失败不影响主流程
+  }
 }
 
 function getSessionData(input: string): SessionData {
@@ -172,7 +191,13 @@ function sendMacOSNotification(session: SessionData): void {
 
   try {
     // 使用 terminal-notifier，点击后激活对应的终端窗口
-    const command = `terminal-notifier -title "${title}" -message "${message}" -sound "${sound}" -activate "com.${terminalApp === 'Warp' ? 'warp.Warp-Stable' : terminalApp === 'iTerm' ? 'googlecode.iterm2' : 'apple.Terminal'}"`;
+    const bundleIds: Record<string, string> = {
+      'Warp': 'dev.warp.Warp-Stable',
+      'iTerm': 'com.googlecode.iterm2',
+      'Terminal': 'com.apple.Terminal'
+    };
+    const bundleId = bundleIds[terminalApp] || 'com.apple.Terminal';
+    const command = `terminal-notifier -title "${title}" -message "${message}" -sound "${sound}" -activate "${bundleId}"`;
     execSync(command);
   } catch (error) {
     // 如果 terminal-notifier 失败，回退到原生通知
