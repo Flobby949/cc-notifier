@@ -18,6 +18,7 @@ export interface NotificationConfig {
   enableSystemNotification: boolean; // 是否启用系统通知（跨平台）
   enableVoice: boolean;             // 是否启用语音
   enableLogging: boolean;           // 是否记录日志
+  autoActivateWindow: boolean;      // 任务完成后是否自动激活终端窗口
   webhooks: WebhookConfig[];
 }
 

@@ -72,4 +72,31 @@ export function activateWindowsTerminal(terminalApp: TerminalApp): void {
   }
 }
 
+/**
+ * 激活 macOS 终端窗口
+ */
+export function activateMacOSTerminal(terminalApp: TerminalApp): void {
+  if (platform !== 'darwin') return;
+
+  try {
+    const bundleId = macOSBundleIds[terminalApp] || 'com.apple.Terminal';
+    execSync(`open -a "${bundleId}"`, { stdio: 'ignore' });
+  } catch (error) {
+    // 激活失败不影响主流程
+  }
+}
+
+/**
+ * 激活终端窗口（跨平台）
+ */
+export function activateTerminalWindow(): void {
+  const terminalApp = getTerminalApp();
+
+  if (platform === 'darwin') {
+    activateMacOSTerminal(terminalApp);
+  } else if (platform === 'win32') {
+    activateWindowsTerminal(terminalApp);
+  }
+}
+
 export { platform };

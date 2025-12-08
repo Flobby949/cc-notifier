@@ -4,4 +4,4 @@
 
 export { sendSystemNotification } from './system';
 export { speakNotification } from './voice';
-export { getTerminalApp, platform } from './terminal';
+export { getTerminalApp, activateTerminalWindow, platform } from './terminal';

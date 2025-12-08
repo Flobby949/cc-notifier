@@ -6,6 +6,7 @@ Claude Code 任务完成通知器，支持多平台系统通知和多种 Webhook
 
 - **跨平台系统通知**：macOS / Windows / Linux
 - **点击激活终端**：支持 Warp、iTerm、Terminal、Windows Terminal、VS Code
+- **自动激活窗口**：任务完成后自动切换到终端窗口
 - **语音播报**：macOS / Windows
 - **多种 Webhook**：Slack、Discord、Telegram、钉钉、飞书、企业微信
 - **任务耗时统计**：精确计算单次任务耗时
@@ -102,6 +103,7 @@ brew install terminal-notifier
   "enableSystemNotification": true,
   "enableVoice": false,
   "enableLogging": true,
+  "autoActivateWindow": false,
   "webhooks": []
 }
 ```
@@ -112,6 +114,7 @@ brew install terminal-notifier
 | `enableSystemNotification` | 是否启用系统通知 |
 | `enableVoice` | 是否启用语音播报 |
 | `enableLogging` | 是否记录日志 |
+| `autoActivateWindow` | 任务完成后是否自动激活终端窗口 |
 
 ## Webhook 配置
 

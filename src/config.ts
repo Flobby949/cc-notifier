@@ -15,6 +15,7 @@ const DEFAULT_CONFIG: NotificationConfig = {
   enableSystemNotification: true,
   enableVoice: false,
   enableLogging: true,
+  autoActivateWindow: false,
   webhooks: [
     {
       enabled: false,

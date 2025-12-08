@@ -8,7 +8,7 @@
 import * as fs from 'fs';
 import { loadConfig, saveConfig, configExists, CONFIG_PATH } from './config';
 import { getSessionData, formatSessionLog } from './session';
-import { sendSystemNotification, speakNotification } from './notification';
+import { sendSystemNotification, speakNotification, activateTerminalWindow } from './notification';
 import { sendAllWebhooks } from './webhook';
 import { log } from './logger';
 
@@ -50,6 +50,11 @@ async function main(): Promise<void> {
   // 发送语音通知
   if (config.enableVoice) {
     speakNotification(session);
+  }
+
+  // 自动激活终端窗口
+  if (config.autoActivateWindow) {
+    activateTerminalWindow();
   }
 
   // 发送 Webhook 通知
