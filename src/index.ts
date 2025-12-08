@@ -9,6 +9,7 @@ import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import notifier from 'node-notifier';
 
 // ============= 配置接口 =============
 
@@ -23,7 +24,7 @@ interface WebhookConfig {
 
 interface NotificationConfig {
   minDuration: number;  // 最小通知时长（秒）
-  enableMacOS: boolean;  // 是否启用 macOS 原生通知
+  enableSystemNotification: boolean;  // 是否启用系统通知（跨平台）
   enableVoice: boolean;  // 是否启用语音
   enableLogging: boolean;  // 是否记录日志
   webhooks: WebhookConfig[];
@@ -46,7 +47,7 @@ const SESSION_DIR = path.join(os.homedir(), '.claude', '.sessions');
 
 const DEFAULT_CONFIG: NotificationConfig = {
   minDuration: 10,
-  enableMacOS: true,
+  enableSystemNotification: true,
   enableVoice: false,
   enableLogging: true,
   webhooks: [
@@ -164,29 +165,51 @@ function getSessionData(input: string): SessionData {
   }
 }
 
-// ============= macOS 通知 =============
+// ============= 系统通知（跨平台） =============
+
+const platform = process.platform;  // 'darwin' | 'win32' | 'linux'
 
 function getTerminalApp(): string {
   // 检测当前终端应用
   const termProgram = process.env.TERM_PROGRAM || '';
 
-  if (termProgram.includes('Warp')) {
-    return 'Warp';
-  } else if (termProgram.includes('iTerm')) {
-    return 'iTerm';
-  } else if (termProgram.includes('Apple_Terminal') || termProgram === '') {
+  if (platform === 'darwin') {
+    if (termProgram.includes('Warp')) {
+      return 'Warp';
+    } else if (termProgram.includes('iTerm')) {
+      return 'iTerm';
+    }
     return 'Terminal';
+  } else if (platform === 'win32') {
+    // Windows 终端检测
+    if (process.env.WT_SESSION) {
+      return 'WindowsTerminal';
+    } else if (process.env.TERM_PROGRAM === 'vscode') {
+      return 'VSCode';
+    }
+    return 'cmd';
   }
 
-  // 默认返回 Terminal
   return 'Terminal';
 }
 
-function sendMacOSNotification(session: SessionData): void {
+function sendSystemNotification(session: SessionData): void {
   const title = session.stopReason.includes('error') ? '⚠️ 任务完成（有错误）' : '✅ 任务完成';
   const durationText = session.duration ? `耗时 ${session.duration} 秒` : '';
   const message = `会话: ${session.sessionId.substring(0, 8)}... ${durationText}`;
-  const sound = session.stopReason.includes('error') ? 'Basso' : 'Glass';
+
+  if (platform === 'darwin') {
+    sendMacOSNotification(title, message, session.stopReason.includes('error'));
+  } else if (platform === 'win32') {
+    sendWindowsNotification(title, message);
+  } else {
+    // Linux 或其他平台使用 node-notifier
+    sendGenericNotification(title, message);
+  }
+}
+
+function sendMacOSNotification(title: string, message: string, isError: boolean): void {
+  const sound = isError ? 'Basso' : 'Glass';
   const terminalApp = getTerminalApp();
 
   try {
@@ -210,12 +233,69 @@ function sendMacOSNotification(session: SessionData): void {
   }
 }
 
-function speakNotification(session: SessionData): void {
+function sendWindowsNotification(title: string, message: string): void {
+  const terminalApp = getTerminalApp();
+
+  // 使用 node-notifier 发送 Windows 通知
+  notifier.notify({
+    title: title,
+    message: message,
+    sound: true,
+    wait: true
+  }, (err, response, metadata) => {
+    // 点击通知后激活终端窗口
+    if (metadata?.activationType === 'clicked') {
+      activateWindowsTerminal(terminalApp);
+    }
+  });
+}
+
+function sendGenericNotification(title: string, message: string): void {
+  // 通用通知（Linux 等平台）
+  notifier.notify({
+    title: title,
+    message: message,
+    sound: true
+  });
+}
+
+function activateWindowsTerminal(terminalApp: string): void {
   try {
-    const message = session.duration 
-      ? `任务已完成，耗时 ${session.duration} 秒`
-      : '任务已完成';
-    execSync(`say "${message}"`);
+    if (terminalApp === 'WindowsTerminal') {
+      // 激活 Windows Terminal
+      const script = `
+        Add-Type -AssemblyName Microsoft.VisualBasic
+        $wt = Get-Process -Name WindowsTerminal -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($wt) { [Microsoft.VisualBasic.Interaction]::AppActivate($wt.Id) }
+      `;
+      execSync(`powershell -Command "${script.replace(/\n/g, ' ')}"`, { stdio: 'ignore' });
+    } else if (terminalApp === 'VSCode') {
+      // 激活 VS Code
+      const script = `
+        Add-Type -AssemblyName Microsoft.VisualBasic
+        $code = Get-Process -Name Code -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($code) { [Microsoft.VisualBasic.Interaction]::AppActivate($code.Id) }
+      `;
+      execSync(`powershell -Command "${script.replace(/\n/g, ' ')}"`, { stdio: 'ignore' });
+    }
+  } catch (error) {
+    // 激活失败不影响主流程
+  }
+}
+
+function speakNotification(session: SessionData): void {
+  const message = session.duration
+    ? `任务已完成，耗时 ${session.duration} 秒`
+    : '任务已完成';
+
+  try {
+    if (platform === 'darwin') {
+      execSync(`say "${message}"`);
+    } else if (platform === 'win32') {
+      // Windows 使用 PowerShell 语音合成
+      const script = `Add-Type -AssemblyName System.Speech; (New-Object System.Speech.Synthesis.SpeechSynthesizer).Speak('${message}')`;
+      execSync(`powershell -Command "${script}"`, { stdio: 'ignore' });
+    }
   } catch (error) {
     console.error('语音通知失败:', error);
   }
@@ -530,9 +610,9 @@ async function main(): Promise<void> {
     return;
   }
   
-  // 发送 macOS 通知
-  if (config.enableMacOS) {
-    sendMacOSNotification(session);
+  // 发送系统通知（跨平台）
+  if (config.enableSystemNotification) {
+    sendSystemNotification(session);
   }
   
   // 发送语音通知
