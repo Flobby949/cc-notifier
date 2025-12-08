@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CLI 延迟加载依赖，修复无 node_modules 时的报错
 - hooks print/check/install 等命令不再需要 node-notifier
 - CLI 使用动态项目路径，支持任意安装位置
+- 修复 node-notifier 未声明为 dependencies 导致 release 包无法使用的问题
 
 ## [0.0.5] - 2025-12-08
 
