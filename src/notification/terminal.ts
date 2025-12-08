@@ -66,7 +66,7 @@ export function activateWindowsTerminal(terminalApp: TerminalApp): void {
       $proc = Get-Process -Name ${processName} -ErrorAction SilentlyContinue | Select-Object -First 1
       if ($proc) { [Microsoft.VisualBasic.Interaction]::AppActivate($proc.Id) }
     `;
-    execSync(`powershell -Command "${script.replace(/\n/g, ' ')}"`, { stdio: 'ignore' });
+    execSync(`powershell -Command "${script.replace(/\n/g, ' ')}"`, { stdio: 'ignore', timeout: 5000 });
   } catch (error) {
     // 激活失败不影响主流程
   }
@@ -80,7 +80,8 @@ export function activateMacOSTerminal(terminalApp: TerminalApp): void {
 
   try {
     const bundleId = macOSBundleIds[terminalApp] || 'com.apple.Terminal';
-    execSync(`open -a "${bundleId}"`, { stdio: 'ignore' });
+    // 使用 -b 参数通过 Bundle ID 激活应用
+    execSync(`open -b "${bundleId}"`, { stdio: 'ignore', timeout: 5000 });
   } catch (error) {
     // 激活失败不影响主流程
   }

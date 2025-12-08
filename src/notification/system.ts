@@ -50,27 +50,35 @@ function sendMacOSNotification(title: string, message: string, isError: boolean)
  * Windows 通知
  */
 function sendWindowsNotification(title: string, message: string): void {
-  const terminalApp = getTerminalApp();
+  try {
+    const terminalApp = getTerminalApp();
 
-  notifier.notify({
-    title: title,
-    message: message,
-    sound: true,
-    wait: true
-  }, (err, response, metadata) => {
-    if (metadata?.activationType === 'clicked') {
-      activateWindowsTerminal(terminalApp);
-    }
-  });
+    notifier.notify({
+      title: title,
+      message: message,
+      sound: true,
+      wait: true
+    }, (err, response, metadata) => {
+      if (!err && metadata?.activationType === 'clicked') {
+        activateWindowsTerminal(terminalApp);
+      }
+    });
+  } catch (error) {
+    // Windows 通知失败静默降级，不影响主流程
+  }
 }
 
 /**
  * 通用通知（Linux 等平台）
  */
 function sendGenericNotification(title: string, message: string): void {
-  notifier.notify({
-    title: title,
-    message: message,
-    sound: true
-  });
+  try {
+    notifier.notify({
+      title: title,
+      message: message,
+      sound: true
+    });
+  } catch (error) {
+    // 通用通知失败静默降级，不影响主流程
+  }
 }

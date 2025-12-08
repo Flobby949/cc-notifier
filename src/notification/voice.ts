@@ -30,13 +30,21 @@ export function speakNotification(session: SessionData): void {
  * macOS 语音
  */
 function speakMacOS(message: string): void {
-  execSync(`say "${message}"`);
+  try {
+    execSync(`say "${message}"`, { stdio: 'ignore', timeout: 10000 });
+  } catch (error) {
+    // 语音失败静默降级，不影响主流程
+  }
 }
 
 /**
  * Windows 语音
  */
 function speakWindows(message: string): void {
-  const script = `Add-Type -AssemblyName System.Speech; (New-Object System.Speech.Synthesis.SpeechSynthesizer).Speak('${message}')`;
-  execSync(`powershell -Command "${script}"`, { stdio: 'ignore' });
+  try {
+    const script = `Add-Type -AssemblyName System.Speech; (New-Object System.Speech.Synthesis.SpeechSynthesizer).Speak('${message}')`;
+    execSync(`powershell -Command "${script}"`, { stdio: 'ignore', timeout: 10000 });
+  } catch (error) {
+    // 语音失败静默降级，不影响主流程
+  }
 }
