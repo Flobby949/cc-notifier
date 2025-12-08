@@ -236,7 +236,7 @@ setup.bat
 脚本会显示交互式菜单：
 ```
 请选择安装模式:
-  1) 快速安装 (仅 npm link，需要 dist 已存在)
+  1) 快速安装 (安装依赖 + npm link，需要 dist 已存在)
   2) 完整构建 (npm install + build + link)
   3) 退出
 ```
