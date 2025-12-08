@@ -19,6 +19,8 @@ export interface NotificationConfig {
   enableVoice: boolean;             // 是否启用语音
   enableLogging: boolean;           // 是否记录日志
   autoActivateWindow: boolean;      // 任务完成后是否自动激活终端窗口
+  enableSessionCleanup: boolean;    // 是否启用会话文件自动清理
+  sessionCleanupDays: number;       // 保留最近多少天的会话文件
   webhooks: WebhookConfig[];
 }
 

@@ -16,6 +16,8 @@ const DEFAULT_CONFIG: NotificationConfig = {
   enableVoice: false,
   enableLogging: true,
   autoActivateWindow: false,
+  enableSessionCleanup: true,
+  sessionCleanupDays: 7,
   webhooks: [
     {
       enabled: false,

@@ -264,6 +264,16 @@ chmod +x dist/index.js dist/session-tracker.js
           }
         ]
       }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/cc-notifier/dist/session-cleaner.js"
+          }
+        ]
+      }
     ]
   }
 }
@@ -298,6 +308,16 @@ chmod +x dist/index.js dist/session-tracker.js
           }
         ]
       }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node %USERPROFILE%\\.claude\\cc-notifier\\dist\\session-cleaner.js"
+          }
+        ]
+      }
     ]
   }
 }
@@ -314,6 +334,8 @@ chmod +x dist/index.js dist/session-tracker.js
   "enableVoice": false,
   "enableLogging": true,
   "autoActivateWindow": false,
+  "enableSessionCleanup": true,
+  "sessionCleanupDays": 7,
   "webhooks": []
 }
 ```
@@ -325,6 +347,8 @@ chmod +x dist/index.js dist/session-tracker.js
 | `enableVoice` | 是否启用语音播报 |
 | `enableLogging` | 是否记录日志 |
 | `autoActivateWindow` | 任务完成后是否自动激活终端窗口 |
+| `enableSessionCleanup` | 是否启用会话文件自动清理 |
+| `sessionCleanupDays` | 保留最近多少天的会话文件（默认 7 天） |
 
 ## Webhook 配置
 
