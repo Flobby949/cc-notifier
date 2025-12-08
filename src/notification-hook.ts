@@ -7,11 +7,18 @@
  */
 
 import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
 import { loadConfig } from './config';
 import { sendSystemNotification, speakNotification, activateTerminalWindow } from './notification';
 import { sendAllWebhooks } from './webhook';
 import { log } from './logger';
 import { SessionData } from './types';
+
+const SESSION_DIR = path.join(os.homedir(), '.claude', '.sessions');
+
+// idle 通知超时时间（毫秒），超过此时间不再发送 idle 通知
+const IDLE_NOTIFICATION_TIMEOUT = 5 * 60 * 1000; // 5 分钟
 
 interface NotificationInput {
   session_id: string;
@@ -32,6 +39,45 @@ function getNotificationTypeLabel(type: string): string {
     elicitation_dialog: 'MCP 输入'
   };
   return labels[type] || type;
+}
+
+/**
+ * 检查 idle 通知是否应该被抑制（超过 5 分钟）
+ * 返回 true 表示应该抑制（不发送通知）
+ */
+function shouldSuppressIdleNotification(sessionId: string): boolean {
+  const sessionFile = path.join(SESSION_DIR, `${sessionId}.json`);
+  const now = Date.now();
+
+  try {
+    if (fs.existsSync(sessionFile)) {
+      const sessionData = JSON.parse(fs.readFileSync(sessionFile, 'utf-8'));
+      const firstIdleTime = sessionData.firstIdleNotificationTime;
+
+      if (firstIdleTime) {
+        // 如果距离首次 idle 通知超过 5 分钟，抑制通知
+        if (now - firstIdleTime > IDLE_NOTIFICATION_TIMEOUT) {
+          return true;
+        }
+      } else {
+        // 首次 idle 通知，记录时间
+        sessionData.firstIdleNotificationTime = now;
+        fs.writeFileSync(sessionFile, JSON.stringify(sessionData, null, 2));
+      }
+    } else {
+      // 会话文件不存在，创建并记录首次 idle 时间
+      if (!fs.existsSync(SESSION_DIR)) {
+        fs.mkdirSync(SESSION_DIR, { recursive: true });
+      }
+      fs.writeFileSync(sessionFile, JSON.stringify({
+        firstIdleNotificationTime: now
+      }, null, 2));
+    }
+  } catch (error) {
+    // 出错时不抑制通知
+  }
+
+  return false;
 }
 
 /**
@@ -71,6 +117,13 @@ async function main(): Promise<void> {
   const allowedTypes = config.notificationHookTypes || ['permission_prompt', 'idle_prompt'];
   if (!allowedTypes.includes(notificationInput.notification_type)) {
     return;
+  }
+
+  // 对于 idle_prompt 类型，检查是否超过 5 分钟，超过则不再通知
+  if (notificationInput.notification_type === 'idle_prompt') {
+    if (shouldSuppressIdleNotification(notificationInput.session_id)) {
+      return;
+    }
   }
 
   const typeLabel = getNotificationTypeLabel(notificationInput.notification_type);

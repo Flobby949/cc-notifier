@@ -37,6 +37,48 @@ function getNotificationTypeLabel(type: string): string {
   return labels[type] || type;
 }
 
+// idle 通知超时时间（毫秒），超过此时间不再发送 idle 通知
+const IDLE_NOTIFICATION_TIMEOUT = 5 * 60 * 1000; // 5 分钟
+
+/**
+ * 检查 idle 通知是否应该被抑制（超过 5 分钟）
+ * 返回 true 表示应该抑制（不发送通知）
+ */
+function shouldSuppressIdleNotification(sessionId: string): boolean {
+  const sessionFile = path.join(SESSION_DIR, `${sessionId}.json`);
+  const now = Date.now();
+
+  try {
+    if (fs.existsSync(sessionFile)) {
+      const sessionData = JSON.parse(fs.readFileSync(sessionFile, 'utf-8'));
+      const firstIdleTime = sessionData.firstIdleNotificationTime;
+
+      if (firstIdleTime) {
+        // 如果距离首次 idle 通知超过 5 分钟，抑制通知
+        if (now - firstIdleTime > IDLE_NOTIFICATION_TIMEOUT) {
+          return true;
+        }
+      } else {
+        // 首次 idle 通知，记录时间
+        sessionData.firstIdleNotificationTime = now;
+        fs.writeFileSync(sessionFile, JSON.stringify(sessionData, null, 2));
+      }
+    } else {
+      // 会话文件不存在，创建并记录首次 idle 时间
+      if (!fs.existsSync(SESSION_DIR)) {
+        fs.mkdirSync(SESSION_DIR, { recursive: true });
+      }
+      fs.writeFileSync(sessionFile, JSON.stringify({
+        firstIdleNotificationTime: now
+      }, null, 2));
+    }
+  } catch {
+    // 出错时不抑制通知
+  }
+
+  return false;
+}
+
 /**
  * 处理 Stop 事件 - 任务完成通知
  */
@@ -184,6 +226,13 @@ async function handleNotification(input: HookInput): Promise<void> {
   const allowedTypes = config.notificationHookTypes || ['permission_prompt', 'idle_prompt'];
   if (!allowedTypes.includes(input.notification_type)) {
     return;
+  }
+
+  // 对于 idle_prompt 类型，检查是否超过 5 分钟，超过则不再通知
+  if (input.notification_type === 'idle_prompt') {
+    if (shouldSuppressIdleNotification(input.session_id)) {
+      return;
+    }
   }
 
   const typeLabel = getNotificationTypeLabel(input.notification_type);
