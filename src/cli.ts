@@ -11,9 +11,25 @@ import * as os from 'os';
 import { loadConfig, saveConfig, configExists, CONFIG_PATH, DEFAULT_CONFIG } from './config';
 import { SESSION_DIR } from './session';
 import { LOG_FILE } from './logger';
-import { sendSystemNotification, speakNotification, activateTerminalWindow } from './notification';
-import { sendAllWebhooks } from './webhook';
 import { SessionData } from './types';
+
+// 延迟加载依赖（避免在不需要时加载 node-notifier）
+let notificationModule: typeof import('./notification') | null = null;
+let webhookModule: typeof import('./webhook') | null = null;
+
+async function getNotificationModule() {
+  if (!notificationModule) {
+    notificationModule = await import('./notification');
+  }
+  return notificationModule;
+}
+
+async function getWebhookModule() {
+  if (!webhookModule) {
+    webhookModule = await import('./webhook');
+  }
+  return webhookModule;
+}
 
 const VERSION = '0.0.5';
 
@@ -473,6 +489,7 @@ async function testStopNotification(): Promise<void> {
   // 测试系统通知
   if (config.enableSystemNotification) {
     console.log('✓ 发送系统通知...');
+    const { sendSystemNotification } = await getNotificationModule();
     sendSystemNotification(session, 'Claude Code 测试');
   } else {
     console.log('✗ 系统通知已禁用');
@@ -481,6 +498,7 @@ async function testStopNotification(): Promise<void> {
   // 测试语音通知
   if (config.enableVoice) {
     console.log('✓ 发送语音通知...');
+    const { speakNotification } = await getNotificationModule();
     speakNotification(session);
   } else {
     console.log('✗ 语音通知已禁用');
@@ -489,6 +507,7 @@ async function testStopNotification(): Promise<void> {
   // 测试终端激活
   if (config.autoActivateWindow) {
     console.log('✓ 激活终端窗口...');
+    const { activateTerminalWindow } = await getNotificationModule();
     activateTerminalWindow();
   } else {
     console.log('✗ 终端激活已禁用');
@@ -498,6 +517,7 @@ async function testStopNotification(): Promise<void> {
   const enabledWebhooks = config.webhooks.filter(w => w.enabled);
   if (enabledWebhooks.length > 0) {
     console.log(`✓ 发送 Webhook 通知 (${enabledWebhooks.length} 个)...`);
+    const { sendAllWebhooks } = await getWebhookModule();
     await sendAllWebhooks(config.webhooks, session, config);
     console.log('  Webhook 发送完成');
   } else {
@@ -530,6 +550,7 @@ async function testNotificationHook(): Promise<void> {
   // 测试系统通知
   if (config.enableSystemNotification) {
     console.log('✓ 发送系统通知...');
+    const { sendSystemNotification } = await getNotificationModule();
     sendSystemNotification(session, 'Claude Code 权限请求');
   } else {
     console.log('✗ 系统通知已禁用');
@@ -538,6 +559,7 @@ async function testNotificationHook(): Promise<void> {
   // 测试语音通知
   if (config.enableVoice) {
     console.log('✓ 发送语音通知...');
+    const { speakNotification } = await getNotificationModule();
     speakNotification({
       ...session,
       stopReason: '权限请求'
@@ -549,6 +571,7 @@ async function testNotificationHook(): Promise<void> {
   // 测试终端激活
   if (config.autoActivateWindow) {
     console.log('✓ 激活终端窗口...');
+    const { activateTerminalWindow } = await getNotificationModule();
     activateTerminalWindow();
   } else {
     console.log('✗ 终端激活已禁用');
@@ -558,6 +581,7 @@ async function testNotificationHook(): Promise<void> {
   const enabledWebhooks = config.webhooks.filter(w => w.enabled);
   if (enabledWebhooks.length > 0) {
     console.log(`✓ 发送 Webhook 通知 (${enabledWebhooks.length} 个)...`);
+    const { sendAllWebhooks } = await getWebhookModule();
     await sendAllWebhooks(config.webhooks, session, config);
     console.log('  Webhook 发送完成');
   } else {
