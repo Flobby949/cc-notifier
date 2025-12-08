@@ -31,7 +31,7 @@ async function getWebhookModule() {
   return webhookModule;
 }
 
-const VERSION = '0.0.5';
+const VERSION = '0.0.6';
 
 /**
  * 显示帮助信息

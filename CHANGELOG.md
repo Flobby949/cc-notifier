@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.6] - 2025-12-08
+
+### Fixed
+
+- CLI 延迟加载依赖，修复无 node_modules 时的报错
+- hooks print/check/install 等命令不再需要 node-notifier
+
 ## [0.0.5] - 2025-12-08
 
 ### Added
@@ -72,6 +79,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - 模块化重构，提升代码可维护性
 
+[0.0.6]: https://github.com/Flobby949/cc-notifier/compare/v0.0.5...v0.0.6
 [0.0.5]: https://github.com/Flobby949/cc-notifier/compare/v0.0.4...v0.0.5
 [0.0.4]: https://github.com/Flobby949/cc-notifier/compare/v0.0.3...v0.0.4
 [0.0.3]: https://github.com/Flobby949/cc-notifier/compare/v0.0.2...v0.0.3
