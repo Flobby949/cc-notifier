@@ -16,12 +16,15 @@ Claude Code 任务完成通知器，支持多平台系统通知和多种 Webhook
 
 ```
 src/
-├── index.ts           # 主入口
+├── hook.ts            # 统一入口（推荐）
+├── index.ts           # Stop 事件处理
 ├── types.ts           # 类型定义
 ├── config.ts          # 配置管理
 ├── logger.ts          # 日志模块
 ├── session.ts         # 会话管理
-├── session-tracker.ts # 会话追踪器（hook）
+├── session-tracker.ts # UserPromptSubmit 事件处理
+├── session-cleaner.ts # SessionEnd 事件处理
+├── notification-hook.ts # Notification 事件处理
 ├── notification/      # 系统通知模块
 │   ├── system.ts      # 系统通知（跨平台）
 │   ├── terminal.ts    # 终端检测和激活
@@ -61,7 +64,7 @@ mkdir -p ~/.claude && cd ~/.claude
 curl -L https://github.com/Flobby949/cc-notifier/releases/latest/download/cc-notifier-dist.tar.gz | tar -xz
 
 # 添加执行权限
-chmod +x cc-notifier/dist/index.js cc-notifier/dist/session-tracker.js
+chmod +x cc-notifier/dist/hook.js
 ```
 
 macOS 用户推荐安装 `terminal-notifier`（点击通知可激活终端）：
@@ -125,7 +128,7 @@ npm run build
 #### 3. 添加执行权限
 
 ```bash
-chmod +x dist/index.js dist/session-tracker.js
+chmod +x dist/hook.js
 ```
 
 #### 4. 安装 terminal-notifier（推荐）
@@ -224,7 +227,7 @@ npm run build
 #### 3. 添加执行权限
 
 ```bash
-chmod +x dist/index.js dist/session-tracker.js
+chmod +x dist/hook.js
 ```
 
 > **注意**：Linux 系统通知依赖 `notify-send`，大多数桌面发行版已预装。如未安装，请使用包管理器安装 `libnotify-bin`（Debian/Ubuntu）或 `libnotify`（Fedora/Arch）。
@@ -237,59 +240,40 @@ chmod +x dist/index.js dist/session-tracker.js
 
 > **注意**：以下配置使用默认路径 `~/.claude/cc-notifier`。如果目录名不同，请相应修改路径。
 
-### macOS / Linux
+### macOS / Linux（推荐：统一入口）
 
 配置文件路径：`~/.claude/settings.json`
+
+使用统一入口 `hook.js`，所有事件都指向同一个文件，配置更简洁：
 
 ```json
 {
   "hooks": {
     "UserPromptSubmit": [
       {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.claude/cc-notifier/dist/session-tracker.js"
-          }
-        ]
+        "hooks": [{ "type": "command", "command": "~/.claude/cc-notifier/dist/hook.js" }]
       }
     ],
     "Stop": [
       {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.claude/cc-notifier/dist/index.js",
-            "background": false
-          }
-        ]
+        "hooks": [{ "type": "command", "command": "~/.claude/cc-notifier/dist/hook.js" }]
       }
     ],
     "SessionEnd": [
       {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.claude/cc-notifier/dist/session-cleaner.js"
-          }
-        ]
+        "hooks": [{ "type": "command", "command": "~/.claude/cc-notifier/dist/hook.js" }]
       }
     ],
     "Notification": [
       {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.claude/cc-notifier/dist/notification-hook.js"
-          }
-        ]
+        "hooks": [{ "type": "command", "command": "~/.claude/cc-notifier/dist/hook.js" }]
       }
     ]
   }
 }
 ```
 
-### Windows
+### Windows（推荐：统一入口）
 
 配置文件路径：`%USERPROFILE%\.claude\settings.json`
 
@@ -300,48 +284,55 @@ chmod +x dist/index.js dist/session-tracker.js
   "hooks": {
     "UserPromptSubmit": [
       {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node %USERPROFILE%\\.claude\\cc-notifier\\dist\\session-tracker.js"
-          }
-        ]
+        "hooks": [{ "type": "command", "command": "node %USERPROFILE%\\.claude\\cc-notifier\\dist\\hook.js" }]
       }
     ],
     "Stop": [
       {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node %USERPROFILE%\\.claude\\cc-notifier\\dist\\index.js",
-            "background": false
-          }
-        ]
+        "hooks": [{ "type": "command", "command": "node %USERPROFILE%\\.claude\\cc-notifier\\dist\\hook.js" }]
       }
     ],
     "SessionEnd": [
       {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node %USERPROFILE%\\.claude\\cc-notifier\\dist\\session-cleaner.js"
-          }
-        ]
+        "hooks": [{ "type": "command", "command": "node %USERPROFILE%\\.claude\\cc-notifier\\dist\\hook.js" }]
       }
     ],
     "Notification": [
       {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node %USERPROFILE%\\.claude\\cc-notifier\\dist\\notification-hook.js"
-          }
-        ]
+        "hooks": [{ "type": "command", "command": "node %USERPROFILE%\\.claude\\cc-notifier\\dist\\hook.js" }]
       }
     ]
   }
 }
 ```
+
+<details>
+<summary>分离入口配置（可选）</summary>
+
+如果你只需要部分功能，可以使用分离的入口文件：
+
+| 事件 | 文件 | 功能 |
+|------|------|------|
+| `Stop` | `index.js` | 任务完成通知 |
+| `UserPromptSubmit` | `session-tracker.js` | 记录任务开始时间 |
+| `SessionEnd` | `session-cleaner.js` | 清理旧会话文件 |
+| `Notification` | `notification-hook.js` | 权限请求等通知 |
+
+macOS / Linux 示例：
+
+```json
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [{ "type": "command", "command": "~/.claude/cc-notifier/dist/index.js" }]
+      }
+    ]
+  }
+}
+```
+
+</details>
 
 ## 配置通知
 
@@ -510,8 +501,11 @@ chmod +x dist/index.js dist/session-tracker.js
 ## 测试
 
 ```bash
-# 测试通知
-echo '{"session_id":"test123","stop_reason":"completed"}' | ~/.claude/cc-notifier/dist/index.js
+# 测试 Stop 事件（任务完成通知）
+echo '{"session_id":"test123","hook_event_name":"Stop","stop_reason":"completed"}' | ~/.claude/cc-notifier/dist/hook.js
+
+# 测试 Notification 事件（权限请求通知）
+echo '{"session_id":"test123","hook_event_name":"Notification","notification_type":"permission_prompt","message":"需要执行命令"}' | ~/.claude/cc-notifier/dist/hook.js
 
 # 查看日志
 tail -f ~/.claude/webhook-notification.log
@@ -580,7 +574,7 @@ sudo sntp -sS time.apple.com
 ### 权限问题
 
 ```bash
-chmod +x ~/.claude/cc-notifier/dist/*.js
+chmod +x ~/.claude/cc-notifier/dist/hook.js
 ```
 
 ## 参考文档
