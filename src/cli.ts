@@ -105,20 +105,27 @@ function showConfig(): void {
 
 const IS_WINDOWS = process.platform === 'win32';
 const CLAUDE_SETTINGS_PATH = path.join(os.homedir(), '.claude', 'settings.json');
-const HOOK_SCRIPT_PATH = path.join(os.homedir(), '.claude', 'notifier', 'dist', 'hook.js');
+
+// 获取当前项目目录（cli.js 所在的 dist 目录的父目录）
+const PROJECT_DIR = path.dirname(path.dirname(__filename));
+const HOOK_SCRIPT_PATH = path.join(PROJECT_DIR, 'dist', 'hook.js');
 
 // 需要配置的 hook 事件
 const REQUIRED_HOOKS = ['Stop', 'UserPromptSubmit', 'SessionEnd', 'Notification'];
 
 /**
  * 获取适合当前平台的 hook 命令路径
+ * 用于生成 Claude settings.json 中的 hooks 配置
  */
 function getHookCommandPath(): string {
+  // 使用实际的项目路径
+  const hookPath = HOOK_SCRIPT_PATH;
+
   if (IS_WINDOWS) {
-    // Windows 使用正斜杠或反斜杠都可以，但推荐使用 node 执行
-    return 'node "%USERPROFILE%\\.claude\\notifier\\dist\\hook.js"';
+    // Windows 需要使用 node 执行
+    return `node "${hookPath}"`;
   }
-  return '~/.claude/notifier/dist/hook.js';
+  return hookPath;
 }
 
 interface ClaudeSettings {
