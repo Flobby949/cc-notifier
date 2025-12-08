@@ -54,14 +54,14 @@ src/
 #### macOS / Linux
 
 ```bash
-# 创建目录
-mkdir -p ~/.claude/cc-notifier && cd ~/.claude/cc-notifier
+# 进入 .claude 目录
+mkdir -p ~/.claude && cd ~/.claude
 
-# 下载最新版本（以 v1.0.0 为例，请替换为实际版本号）
+# 下载并解压（解压后自动生成 cc-notifier 目录）
 curl -L https://github.com/Flobby949/cc-notifier/releases/latest/download/cc-notifier-dist.tar.gz | tar -xz
 
 # 添加执行权限
-chmod +x dist/index.js dist/session-tracker.js
+chmod +x cc-notifier/dist/index.js cc-notifier/dist/session-tracker.js
 ```
 
 macOS 用户推荐安装 `terminal-notifier`（点击通知可激活终端）：
@@ -73,17 +73,17 @@ brew install terminal-notifier
 #### Windows
 
 1. 从 [Releases 页面](https://github.com/Flobby949/cc-notifier/releases) 下载 `cc-notifier-dist.zip`
-2. 解压到 `%USERPROFILE%\.claude\cc-notifier` 目录
+2. 解压到 `%USERPROFILE%\.claude\` 目录（解压后自动生成 `cc-notifier` 文件夹）
 3. 确保目录结构为 `%USERPROFILE%\.claude\cc-notifier\dist\index.js`
 
 或使用 PowerShell：
 
 ```powershell
-# 创建目录
-mkdir $env:USERPROFILE\.claude\cc-notifier -Force
-cd $env:USERPROFILE\.claude\cc-notifier
+# 进入 .claude 目录
+mkdir $env:USERPROFILE\.claude -Force
+cd $env:USERPROFILE\.claude
 
-# 下载并解压（以 v1.0.0 为例，请替换为实际版本号）
+# 下载并解压（解压后自动生成 cc-notifier 目录）
 Invoke-WebRequest -Uri "https://github.com/Flobby949/cc-notifier/releases/latest/download/cc-notifier-dist.zip" -OutFile "cc-notifier-dist.zip"
 Expand-Archive -Path "cc-notifier-dist.zip" -DestinationPath "." -Force
 Remove-Item "cc-notifier-dist.zip"
@@ -233,7 +233,13 @@ chmod +x dist/index.js dist/session-tracker.js
 
 ## 配置 Claude Code Hooks
 
-编辑 `~/.claude/settings.json`：
+编辑 Claude Code 的 settings.json 配置文件。
+
+> **注意**：以下配置使用默认路径 `~/.claude/cc-notifier`。如果目录名不同，请相应修改路径。
+
+### macOS / Linux
+
+配置文件路径：`~/.claude/settings.json`
 
 ```json
 {
@@ -254,6 +260,40 @@ chmod +x dist/index.js dist/session-tracker.js
           {
             "type": "command",
             "command": "~/.claude/cc-notifier/dist/index.js",
+            "background": false
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+### Windows
+
+配置文件路径：`%USERPROFILE%\.claude\settings.json`
+
+> **重要**：Windows 不支持 shebang，必须使用 `node` 命令来运行脚本。
+
+```json
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node %USERPROFILE%\\.claude\\cc-notifier\\dist\\session-tracker.js"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node %USERPROFILE%\\.claude\\cc-notifier\\dist\\index.js",
             "background": false
           }
         ]
