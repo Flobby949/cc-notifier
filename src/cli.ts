@@ -45,7 +45,7 @@ Usage: ccntf <command> [options]
 Commands:
   init            初始化 webhook 配置文件
   hooks [action]  管理 Claude hooks 配置
-                  action: show, install, print (默认: show)
+                  action: show, install, print, update (默认: show)
   test [type]     测试 hooks 通知功能
                   type: stop, notification, all (默认: all)
   config          显示当前配置
@@ -62,6 +62,7 @@ Examples:
   ccntf hooks             # 显示当前 Claude hooks 配置
   ccntf hooks install     # 自动安装 hooks 到 Claude 配置
   ccntf hooks print       # 打印 hooks 配置 JSON（可复制）
+  ccntf hooks update      # 更新 hooks 路径到当前项目位置
   ccntf test              # 测试所有通知
   ccntf test stop         # 测试 Stop 事件通知
   ccntf test notification # 测试 Notification 事件通知
@@ -297,9 +298,14 @@ function manageHooks(action: string): void {
       installHooks();
       break;
 
+    case 'update':
+      // 更新 hooks 路径
+      updateHooksPath();
+      break;
+
     default:
       console.error(`未知操作: ${action}`);
-      console.log('可用操作: show, install, print');
+      console.log('可用操作: show, install, print, update');
       process.exit(1);
   }
 }
@@ -402,6 +408,100 @@ function installHooks(): void {
   }
   console.log('✓ 配置已保存到:', CLAUDE_SETTINGS_PATH);
   console.log('\n请重启 Claude Code 以使配置生效');
+}
+
+/**
+ * 更新 hooks 路径到当前项目位置
+ */
+function updateHooksPath(): void {
+  console.log('更新 hooks 路径到当前项目位置...\n');
+
+  // 检查 settings.json 是否存在
+  if (!fs.existsSync(CLAUDE_SETTINGS_PATH)) {
+    console.log('✗ Claude 配置文件不存在:', CLAUDE_SETTINGS_PATH);
+    console.log('  请先运行 Claude Code 以生成配置文件');
+    return;
+  }
+
+  // 读取配置
+  let settings: any;
+  try {
+    settings = JSON.parse(fs.readFileSync(CLAUDE_SETTINGS_PATH, 'utf-8'));
+  } catch {
+    console.log('✗ 无法解析配置文件');
+    return;
+  }
+
+  if (!settings.hooks) {
+    console.log('✗ 当前未配置任何 hooks');
+    console.log('  请先运行: ccntf hooks install');
+    return;
+  }
+
+  // 备份现有配置
+  const backupPath = CLAUDE_SETTINGS_PATH + '.backup-before-update';
+  fs.copyFileSync(CLAUDE_SETTINGS_PATH, backupPath);
+  console.log('✓ 已备份原配置到:', backupPath);
+
+  // 获取新的 hook 命令路径
+  const newHookCommand = getHookCommandPath();
+  console.log('新的 hook 路径:', newHookCommand);
+
+  let updated = 0;
+
+  // 更新每个 hook 的配置
+  for (const hookName of REQUIRED_HOOKS) {
+    const hookConfig = settings.hooks[hookName];
+
+    if (!hookConfig || hookConfig.length === 0) {
+      continue;
+    }
+
+    // 查找并更新我们的 hook 命令
+    let hasOurHook = false;
+    for (const hookGroup of hookConfig) {
+      if (hookGroup.hooks && Array.isArray(hookGroup.hooks)) {
+        for (const hook of hookGroup.hooks) {
+          if (hook.command) {
+            // 检查是否是我们的 hook（包含 notifier/dist/hook.js 或 cc-hook）
+            if (hook.command.includes('notifier/dist/hook.js') ||
+                hook.command.includes('notifier\\dist\\hook.js') ||
+                hook.command.endsWith('cc-hook') ||
+                hook.command.includes('"cc-hook"') ||
+                hook.command.includes("'cc-hook'")) {
+              // 更新为我们的新路径
+              hook.command = newHookCommand;
+              hasOurHook = true;
+              updated++;
+            }
+          }
+        }
+      }
+    }
+
+    if (hasOurHook) {
+      console.log(`  ✓ ${hookName}: 已更新路径`);
+    } else {
+      console.log(`  - ${hookName}: 未找到需要更新的 hook`);
+    }
+  }
+
+  if (updated === 0) {
+    console.log('\n✗ 未找到任何需要更新的 hook 路径');
+    console.log('  建议运行: ccntf hooks install');
+    return;
+  }
+
+  // 写入更新后的配置
+  try {
+    fs.writeFileSync(CLAUDE_SETTINGS_PATH, JSON.stringify(settings, null, 2));
+    console.log('\n✓ 配置已更新:', CLAUDE_SETTINGS_PATH);
+    console.log(`  更新了 ${updated} 个 hook 路径`);
+    console.log('\n请重启 Claude Code 以使配置生效');
+  } catch (error: any) {
+    console.error('\n✗ 保存配置失败:', error.message);
+    console.log('  备份文件保存在:', backupPath);
+  }
 }
 
 /**

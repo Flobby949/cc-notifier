@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `ccntf backup [path]` 命令，支持手动备份 Claude settings.json 配置文件
 - 备份命令支持自定义路径或自动生成带时间戳的备份文件
+- `ccntf hooks update` 命令，支持更新 hooks 路径到当前项目位置（用于移动项目后更新配置）
 
 ### Changed
 

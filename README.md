@@ -318,6 +318,7 @@ ccntf init
 | `ccntf init`               | 初始化配置文件               |
 | `ccntf hooks show`         | 查看 Hooks 配置              |
 | `ccntf hooks install`      | 安装 / 更新 Hooks            |
+| `ccntf hooks update`       | 更新 Hooks 路径到当前位置    |
 | `ccntf check`              | 检查 Hooks 是否正确          |
 | `ccntf backup [path]`      | 备份 Claude settings.json    |
 | `ccntf clean`              | 清理日志和会话文件           |
