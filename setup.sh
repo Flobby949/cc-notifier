@@ -59,16 +59,21 @@ case $choice in
         echo ""
         echo "模式: 快速安装"
 
-        # 检查 npm 是否安装
-        if ! command -v npm &> /dev/null; then
-            echo "✗ 未找到 npm"
-            exit 1
-        fi
+        # 检查 node_modules 是否已存在
+        if [ -d "$PROJECT_DIR/node_modules" ]; then
+            echo "✓ node_modules 已存在，跳过安装"
+        else
+            # 检查 npm 是否安装
+            if ! command -v npm &> /dev/null; then
+                echo "✗ 未找到 npm"
+                exit 1
+            fi
 
-        # 安装运行时依赖
-        echo ""
-        echo "安装运行时依赖..."
-        npm install --omit=dev
+            # 安装运行时依赖
+            echo ""
+            echo "安装运行时依赖..."
+            npm install --omit=dev
+        fi
         ;;
     2)
         echo ""
@@ -117,10 +122,10 @@ echo ""
 
 # 检查配置
 echo "==================================="
-echo "检查 Claude Code hooks 配置"
+echo "安装 Claude Code hooks"
 echo "==================================="
 echo ""
-ccntf check
+ccntf hooks install
 
 # 检查并询问是否初始化配置
 CONFIG_FILE="$HOME/.claude/webhook-config.json"

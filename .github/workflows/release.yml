@@ -33,9 +33,14 @@ jobs:
           mkdir -p cc-notifier
           cp -r dist cc-notifier/
           cp package.json cc-notifier/
+          cp package-lock.json cc-notifier/
           cp setup.sh cc-notifier/
-          cp setup.bat cc-notifier/
           chmod +x cc-notifier/setup.sh
+
+          cd cc-notifier
+          npm install --omit=dev
+          cd ..
+
           zip -r cc-notifier-dist.zip cc-notifier/
           tar -czvf cc-notifier-dist.tar.gz cc-notifier/
 

@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.7] - 2025-12-11
+
+### Added
+
+- `ccntf backup [path]` 命令，支持手动备份 Claude settings.json 配置文件
+- 备份命令支持自定义路径或自动生成带时间戳的备份文件
+
+### Changed
+
+- GitHub workflow 优化：发行包打包前预安装生产依赖，用户下载后无需再执行 npm install
+- 发行包中包含 package-lock.json 确保依赖版本一致
+- setup.sh 优化：检测 node_modules 是否已存在，存在则跳过安装
+
+### Fixed
+
+- 修复 `ccntf hooks install` 会覆盖用户已有 hook 配置的严重问题，现在改为追加而非覆盖
+- 改进去重检测逻辑，更精确地识别已安装的 hook，避免重复添加
+- 移除 workflow 中对已删除的 setup.bat 的引用
+
 ## [0.0.6] - 2025-12-08
 
 ### Fixed
@@ -82,6 +101,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - 模块化重构，提升代码可维护性
 
+[0.0.7]: https://github.com/Flobby949/cc-notifier/compare/v0.0.6...v0.0.7
 [0.0.6]: https://github.com/Flobby949/cc-notifier/compare/v0.0.5...v0.0.6
 [0.0.5]: https://github.com/Flobby949/cc-notifier/compare/v0.0.4...v0.0.5
 [0.0.4]: https://github.com/Flobby949/cc-notifier/compare/v0.0.3...v0.0.4

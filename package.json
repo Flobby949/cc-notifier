@@ -1,6 +1,6 @@
 {
   "name": "claude-code-notifier",
-  "version": "1.0.0",
+  "version": "0.0.7",
   "description": "Webhook notifications for Claude Code task completion",
   "main": "dist/index.js",
   "bin": {

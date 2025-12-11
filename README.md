@@ -1,577 +1,412 @@
 # Claude Code Notifier
 
-Claude Code 任务完成通知器，支持多平台系统通知和多种 Webhook 服务。
+为 [Claude Code](https://docs.anthropic.com/en/docs/claude-code) 提供任务完成通知的轻量级扩展工具，支持跨平台桌面通知与多平台 Webhook 推送，让你在专注其他工作时也不会错过 Claude 的长任务结果。
 
-## 特性
+---
 
-- **跨平台系统通知**：macOS / Windows / Linux
-- **点击激活终端**：支持 Warp、iTerm、Terminal、Windows Terminal、VS Code
-- **自动激活窗口**：任务完成后自动切换到终端窗口
-- **语音播报**：macOS / Windows
-- **多种 Webhook**：Slack、Discord、Telegram、钉钉、飞书、企业微信
-- **任务耗时统计**：精确计算单次任务耗时
-- **CLI 工具**：一键安装配置、测试通知、管理 hooks
+## ✨ 特性
 
-## 快速开始
+- ✅ **跨平台桌面通知**：支持 macOS / Windows / Linux
+- 🔔 **多渠道提醒**：系统通知、语音播报、Webhook（钉钉 / 飞书 / 企业微信 / Slack / Discord / Telegram / 自定义）
+- ⏱️ **任务耗时统计**：自动记录每次任务运行时长
+- 🧠 **按需提醒**：支持设置最小耗时阈值，只在“长任务完成”时提醒，避免被频繁打扰
+- 🧹 **会话管理与清理**：记录会话状态，自动清理过期数据
+- 🛠️ **CLI 工具**：一条命令检查 / 测试 / 安装 Hooks，便于排查问题
 
-```bash
-# 1. 下载并解压到 ~/.claude/ 目录
-# 2. 运行安装脚本，Windows不需要授权
-chmod +x setup.sh && ./setup.sh
+---
 
-# 3. 安装 Claude hooks 配置
-ccntf hooks install
+## 🧩 使用场景
 
-# 4. 初始化 webhook 配置（可选）
-ccntf init
+- 让 Claude 帮你执行耗时分析或大项目生成代码时，你可以切出去处理其它事情，任务完成后自动收到通知  
+- 在 Claude 请求执行潜在危险操作（如删除文件、批量修改等）时，通过 Notification 事件进行“权限确认”提醒  
+- 当 Claude 长时间等待输入或处于空闲状态时，通过通知提醒你继续对话
 
-# 完成！重启 Claude Code 即可使用
-```
+---
 
-## 安装
+## 🚀 快速开始
 
-<details>
-<summary>预编译包安装（推荐）</summary>
-
-从 [GitHub Releases](https://github.com/Flobby949/cc-notifier/releases) 下载预编译包，无需手动编译。
+> 适用于：**已安装 Claude Code 桌面版** 的用户。  
+> 默认使用预编译发布包，无需本地构建。
 
 ### macOS / Linux
 
 ```bash
-# 进入 .claude 目录
+# 1. 下载并解压到 ~/.claude 目录
 mkdir -p ~/.claude && cd ~/.claude
-
-# 下载并解压
 curl -L https://github.com/Flobby949/cc-notifier/releases/latest/download/cc-notifier-dist.tar.gz | tar -xz
 
-# 运行安装脚本
-chmod +x cc-notifier/setup.sh && cd cc-notifier && ./setup.sh
+# 2. 执行安装脚本（自动配置 hooks 等）
+cd cc-notifier && ./setup.sh
+
+# 3. 验证安装是否成功
+ccntf check    # 检查 hooks 配置
+ccntf test     # 发送测试通知
 ```
 
-macOS 用户推荐安装 `terminal-notifier`（点击通知可激活终端）：
+### Windows
+
+> 推荐在 **Git Bash** 或支持 `sh` 的终端中执行安装脚本。
+
+```bash
+# 在 Git Bash 中执行
+mkdir -p "$USERPROFILE/.claude" && cd "$USERPROFILE/.claude"
+curl -L https://github.com/Flobby949/cc-notifier/releases/latest/download/cc-notifier-dist.tar.gz | tar -xz
+
+cd cc-notifier && ./setup.sh
+
+# 验证安装
+ccntf check
+ccntf test
+```
+
+> 安装完成后，**重启 Claude Code** 以加载新的 Hooks 配置。
+
+---
+
+## ⚙️ 工作原理与架构
+
+Claude Code Notifier 基于 Claude Code 的 [Hooks 机制](https://docs.anthropic.com/en/docs/claude-code/hooks)，在特定事件发生时触发通知，并根据配置进行分发和过滤。
+
+### 支持的 Hook 事件
+
+| 事件                | 触发时机                         | 用途                     |
+|---------------------|----------------------------------|--------------------------|
+| `Stop`              | Claude 完成任务                  | 发送任务完成通知         |
+| `Notification`      | 权限请求、空闲提示等             | 发送即时提醒             |
+| `UserPromptSubmit`  | 用户发送消息                     | 记录任务开始时间         |
+| `SessionEnd`        | 会话结束                         | 清理会话数据 / 统计信息  |
+
+### 架构示意
+
+```mermaid
+flowchart LR
+    subgraph Claude Code
+        A[Stop 事件]
+        B[Notification 事件]
+        C[UserPromptSubmit 事件]
+        D[SessionEnd 事件]
+    end
+
+    subgraph Hook 脚本
+        E[hook.js]
+        F[读取配置]
+        G[计算耗时]
+    end
+
+    subgraph 通知分发
+        H[系统通知]
+        I[语音播报]
+        J[Webhook]
+    end
+
+    A --> E
+    B --> E
+    C --> E
+    D --> E
+    E --> F
+    F --> G
+    G --> H
+    G --> I
+    G --> J
+```
+
+### 项目结构概览
+
+```text
+cc-notifier/
+├── src/
+│   ├── cli.ts                 # CLI 命令入口
+│   ├── hook.ts                # Hook 事件处理（主入口）
+│   ├── config.ts              # 配置文件读取
+│   ├── session.ts             # 会话状态管理
+│   ├── logger.ts              # 日志记录
+│   ├── types.ts               # TypeScript 类型定义
+│   ├── notification/          # 通知模块
+│   │   ├── index.ts           # 通知分发
+│   │   ├── system.ts          # 系统桌面通知
+│   │   ├── voice.ts           # 语音播报
+│   │   └── terminal.ts        # 终端检测与激活
+│   └── webhook/               # Webhook 模块
+│       ├── index.ts           # Webhook 分发
+│       ├── http.ts            # HTTP 请求封装
+│       └── providers/         # 各平台实现
+│           ├── dingtalk.ts    # 钉钉
+│           ├── feishu.ts      # 飞书
+│           ├── wecom.ts       # 企业微信
+│           ├── slack.ts       # Slack
+│           ├── discord.ts     # Discord
+│           ├── telegram.ts    # Telegram
+│           └── custom.ts      # 自定义 Webhook
+├── dist/                      # 编译输出
+├── setup.sh                   # macOS/Linux 安装脚本
+├── setup.bat                  # Windows 安装脚本（可选）
+└── package.json
+```
+
+---
+
+## 🔧 Claude Code Hooks 配置（手动方式）
+
+> 一般情况下，你**不需要手动配置**，安装脚本会自动生成 `settings.json`。本节用于了解原理或手动调试。
+
+Claude Code 的配置文件路径为：`~/.claude/settings.json`。
+
+### macOS / Linux 示例
+
+```json
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/cc-notifier/dist/hook.js"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/cc-notifier/dist/hook.js"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/cc-notifier/dist/hook.js"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/cc-notifier/dist/hook.js"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+### Windows 示例（使用 node 执行）
+
+```json
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"C:\\Users\\你的用户名\\.claude\\cc-notifier\\dist\\hook.js\""
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"C:\\Users\\你的用户名\\.claude\\cc-notifier\\dist\\hook.js\""
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"C:\\Users\\你的用户名\\.claude\\cc-notifier\\dist\\hook.js\""
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"C:\\Users\\你的用户名\\.claude\\cc-notifier\\dist\\hook.js\""
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+> 请将 `"你的用户名"` 替换为实际 Windows 用户名。  
+> 如果只关心“任务完成”提醒，可以只配置 `Stop` 和 `UserPromptSubmit` 两个事件。
+
+---
+
+## 📝 配置说明
+
+### 配置文件位置
+
+默认配置文件路径：`~/.claude/webhook-config.json`  
+可以通过运行以下命令进行初始化：
+
+```bash
+ccntf init
+```
+
+### 通知相关配置
+
+| 参数                      | 类型    | 默认值 | 说明                                         |
+|---------------------------|---------|--------|----------------------------------------------|
+| `minDuration`             | number  | 10     | 最小通知时长（秒），任务耗时低于此值不通知   |
+| `enableSystemNotification`| boolean | true   | 是否启用桌面通知                             |
+| `enableVoice`            | boolean | false  | 是否启用语音播报                             |
+| `autoActivateWindow`     | boolean | false  | 任务完成后是否自动激活终端窗口               |
+
+### 日志与会话配置
+
+| 参数                   | 类型    | 默认值 | 说明                                  |
+|------------------------|---------|--------|---------------------------------------|
+| `enableLogging`        | boolean | true   | 是否记录日志                          |
+| `enableSessionCleanup` | boolean | true   | 是否自动清理过期会话文件              |
+| `sessionCleanupDays`   | number  | 7      | 会话文件保留天数                      |
+
+### Notification Hook 配置
+
+| 参数                     | 类型      | 默认值 | 说明                      |
+|--------------------------|-----------|--------|---------------------------|
+| `enableNotificationHook` | boolean   | true   | 是否启用 Notification 通知|
+| `notificationHookTypes`  | string[]  | 见下   | 需要通知的通知类型        |
+
+可选的 `notificationHookTypes` 值：
+
+| 类型                  | 说明               |
+|-----------------------|--------------------|
+| `permission_prompt`   | 权限请求提示       |
+| `idle_prompt`         | 空闲提示           |
+| `auth_success`        | 认证成功           |
+| `elicitation_dialog`  | 信息收集对话框     |
+
+### Webhook 配置
+
+支持多种平台的 Webhook 推送（钉钉 / 飞书 / 企业微信 / Slack / Discord / Telegram / 自定义）。  
+详细配置请参考：[`docs/WEBHOOK.md`](docs/WEBHOOK.md)。
+
+---
+
+## 🧪 CLI 命令一览
+
+安装完成后，将提供 `ccntf` 命令：
+
+| 命令                       | 说明                         |
+|----------------------------|------------------------------|
+| `ccntf test`               | 测试所有通知                 |
+| `ccntf test stop`          | 测试 Stop 事件               |
+| `ccntf test notification`  | 测试 Notification 事件       |
+| `ccntf config`             | 查看当前配置                 |
+| `ccntf init`               | 初始化配置文件               |
+| `ccntf hooks show`         | 查看 Hooks 配置              |
+| `ccntf hooks install`      | 安装 / 更新 Hooks            |
+| `ccntf check`              | 检查 Hooks 是否正确          |
+| `ccntf backup [path]`      | 备份 Claude settings.json    |
+| `ccntf clean`              | 清理日志和会话文件           |
+| `ccntf help`               | 查看帮助                     |
+
+---
+
+## 💻 平台支持
+
+### 桌面通知
+
+| 平台   | 实现方式                       | 点击激活终端 |
+|--------|--------------------------------|--------------|
+| macOS  | `terminal-notifier` / node-notifier | 支持   |
+| Windows| node-notifier                  | 支持         |
+| Linux  | node-notifier（基于 libnotify）| 不支持       |
+
+macOS 推荐安装 `terminal-notifier`：
 
 ```bash
 brew install terminal-notifier
 ```
 
-### Windows
-
-1. 从 [Releases 页面](https://github.com/Flobby949/cc-notifier/releases) 下载 `cc-notifier-dist.zip`
-2. 解压到 `%USERPROFILE%\.claude\` 目录
-3. 运行 `setup.bat`
-
-或使用 PowerShell：
-
-```powershell
-# 进入 .claude 目录
-mkdir $env:USERPROFILE\.claude -Force
-cd $env:USERPROFILE\.claude
-
-# 下载并解压
-Invoke-WebRequest -Uri "https://github.com/Flobby949/cc-notifier/releases/latest/download/cc-notifier-dist.zip" -OutFile "cc-notifier-dist.zip"
-Expand-Archive -Path "cc-notifier-dist.zip" -DestinationPath "." -Force
-Remove-Item "cc-notifier-dist.zip"
-
-# 运行安装脚本
-cd cc-notifier
-.\setup.bat
-```
-
-</details>
-
-<details>
-<summary>源码安装</summary>
-
-如果你需要修改源码或参与开发，可以选择源码安装。
-
-### macOS / Linux
+Linux 需要安装 `libnotify`：
 
 ```bash
-# 克隆项目
-mkdir -p ~/.claude && cd ~/.claude
-git clone https://github.com/Flobby949/cc-notifier.git
-cd cc-notifier
+# Debian / Ubuntu
+sudo apt install libnotify-bin
 
-# 运行安装脚本（选择"完整构建"）
-chmod +x setup.sh && ./setup.sh
+# Fedora
+sudo dnf install libnotify
+
+# Arch
+sudo pacman -S libnotify
 ```
-
-### Windows
-
-```powershell
-# 克隆项目
-mkdir $env:USERPROFILE\.claude -Force
-cd $env:USERPROFILE\.claude
-git clone https://github.com/Flobby949/cc-notifier.git
-cd cc-notifier
-
-# 运行安装脚本（选择"完整构建"）
-.\setup.bat
-```
-
-> **Linux 注意**：系统通知依赖 `notify-send`，大多数桌面发行版已预装。如未安装，请使用包管理器安装 `libnotify-bin`（Debian/Ubuntu）或 `libnotify`（Fedora/Arch）。
-
-</details>
-
-## 配置
-
-<details>
-<summary>使用 CLI 工具配置（推荐）</summary>
-
-### 1. 安装 Claude hooks
-
-```bash
-ccntf hooks install
-```
-
-这会自动将 hooks 配置写入 `~/.claude/settings.json`，并备份原配置。
-
-### 2. 初始化 webhook 配置
-
-```bash
-ccntf init
-```
-
-这会创建 `~/.claude/webhook-config.json` 配置文件。
-
-### 3. 验证配置
-
-```bash
-ccntf check
-```
-
-### 4. 测试通知
-
-```bash
-ccntf test
-```
-
-</details>
-
-<details>
-<summary>手动配置</summary>
-
-### Claude hooks 配置
-
-编辑 `~/.claude/settings.json`（Windows: `%USERPROFILE%\.claude\settings.json`）：
-
-**macOS / Linux：**
-
-```json
-{
-  "hooks": {
-    "UserPromptSubmit": [
-      { "hooks": [{ "type": "command", "command": "~/.claude/cc-notifier/dist/hook.js" }] }
-    ],
-    "Stop": [
-      { "hooks": [{ "type": "command", "command": "~/.claude/cc-notifier/dist/hook.js" }] }
-    ],
-    "SessionEnd": [
-      { "hooks": [{ "type": "command", "command": "~/.claude/cc-notifier/dist/hook.js" }] }
-    ],
-    "Notification": [
-      { "hooks": [{ "type": "command", "command": "~/.claude/cc-notifier/dist/hook.js" }] }
-    ]
-  }
-}
-```
-
-**Windows：**
-
-```json
-{
-  "hooks": {
-    "UserPromptSubmit": [
-      { "hooks": [{ "type": "command", "command": "node %USERPROFILE%\\.claude\\cc-notifier\\dist\\hook.js" }] }
-    ],
-    "Stop": [
-      { "hooks": [{ "type": "command", "command": "node %USERPROFILE%\\.claude\\cc-notifier\\dist\\hook.js" }] }
-    ],
-    "SessionEnd": [
-      { "hooks": [{ "type": "command", "command": "node %USERPROFILE%\\.claude\\cc-notifier\\dist\\hook.js" }] }
-    ],
-    "Notification": [
-      { "hooks": [{ "type": "command", "command": "node %USERPROFILE%\\.claude\\cc-notifier\\dist\\hook.js" }] }
-    ]
-  }
-}
-```
-
-### webhook 配置文件
-
-创建 `~/.claude/webhook-config.json`：
-
-```json
-{
-  "minDuration": 10,
-  "enableSystemNotification": true,
-  "enableVoice": false,
-  "enableLogging": true,
-  "autoActivateWindow": false,
-  "enableSessionCleanup": true,
-  "sessionCleanupDays": 7,
-  "enableNotificationHook": true,
-  "notificationHookTypes": ["permission_prompt", "idle_prompt"],
-  "webhooks": []
-}
-```
-
-</details>
-
-## CLI 工具
-
-<details>
-<summary>安装 CLI</summary>
-
-### 使用安装脚本（推荐）
-
-```bash
-# macOS / Linux
-chmod +x setup.sh && ./setup.sh
-
-# Windows
-setup.bat
-```
-
-脚本会显示交互式菜单：
-```
-请选择安装模式:
-  1) 快速安装 (安装依赖 + npm link，需要 dist 已存在)
-  2) 完整构建 (npm install + build + link)
-  3) 退出
-```
-
-### 手动安装
-
-```bash
-cd ~/.claude/cc-notifier
-npm install && npm run build  # 源码安装需要
-npm link
-```
-
-</details>
-
-<details>
-<summary>命令列表</summary>
-
-```bash
-ccntf help              # 查看帮助
-ccntf init              # 初始化 webhook 配置文件
-ccntf init --force      # 强制覆盖配置文件
-ccntf hooks             # 显示当前 Claude hooks 配置
-ccntf hooks show        # 同上
-ccntf hooks print       # 打印可复制的 hooks 配置 JSON
-ccntf hooks install     # 自动安装 hooks 到 Claude 配置
-ccntf test              # 测试所有通知
-ccntf test stop         # 测试 Stop 事件通知
-ccntf test notification # 测试 Notification 事件通知
-ccntf config            # 显示当前 webhook 配置
-ccntf check             # 检查 Claude hooks 配置是否正确
-ccntf clean             # 清理日志和会话文件
-ccntf clean log         # 仅清理日志文件
-ccntf clean session     # 仅清理会话文件（保留 30 分钟内活跃的会话）
-ccntf version           # 显示版本号
-```
-
-</details>
-
-<details>
-<summary>hooks 命令详解</summary>
-
-`ccntf hooks` 用于管理 Claude Code 的 hooks 配置：
-
-```bash
-# 查看当前配置
-$ ccntf hooks
-当前 Claude hooks 配置:
-{
-  "hooks": {
-    "Stop": [...],
-    "UserPromptSubmit": [...]
-  }
-}
-
-# 打印可复制的配置（适配当前平台）
-$ ccntf hooks print
-
-# 自动安装（推荐）
-$ ccntf hooks install
-安装 hooks 到 Claude 配置...
-
-✓ 读取现有配置文件
-✓ 已备份原配置到: ~/.claude/settings.json.backup
-✓ 已安装 4 个 hooks
-✓ 配置已保存到: ~/.claude/settings.json
-
-请重启 Claude Code 以使配置生效
-```
-
-> **注意**: `hooks install` 会自动备份原配置，并保留其他配置项不变。
-
-</details>
-
-## Webhook 配置
-
-<details>
-<summary>各平台配置示例</summary>
-
-### Slack
-
-```json
-{
-  "enabled": true,
-  "url": "https://hooks.slack.com/services/T00000000/B00000000/XXXX",
-  "type": "slack"
-}
-```
-
-### Discord
-
-```json
-{
-  "enabled": true,
-  "url": "https://discord.com/api/webhooks/1234567890/abcdefg",
-  "type": "discord"
-}
-```
-
-### Telegram
-
-```json
-{
-  "enabled": true,
-  "url": "https://api.telegram.org/bot",
-  "type": "telegram",
-  "token": "1234567890:ABCdefGHIjklMNOpqrsTUVwxyz",
-  "chatId": "123456789"
-}
-```
-
-### 钉钉
-
-```json
-{
-  "enabled": true,
-  "url": "https://oapi.dingtalk.com/robot/send?access_token=XXXX",
-  "type": "dingtalk",
-  "secret": "SECxxxxxxxxxx"
-}
-```
-
-### 飞书
-
-```json
-{
-  "enabled": true,
-  "url": "https://open.feishu.cn/open-apis/bot/v2/hook/xxxx",
-  "type": "feishu",
-  "secret": "xxxxxxxx"
-}
-```
-
-### 企业微信
-
-```json
-{
-  "enabled": true,
-  "url": "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxxx",
-  "type": "wecom"
-}
-```
-
-### 自定义 Webhook
-
-```json
-{
-  "enabled": true,
-  "url": "https://your-server.com/webhook",
-  "type": "custom"
-}
-```
-
-发送的 JSON 格式：
-
-```json
-{
-  "title": "Claude Code 任务完成",
-  "sessionId": "abc123...",
-  "stopReason": "completed",
-  "duration": 45,
-  "projectPath": "/path/to/project",
-  "timestamp": "2024-12-08T10:30:00.000Z"
-}
-```
-
-### 多 Webhook 配置示例
-
-```json
-{
-  "minDuration": 10,
-  "enableSystemNotification": true,
-  "webhooks": [
-    {
-      "enabled": true,
-      "url": "https://oapi.dingtalk.com/robot/send?access_token=XXXX",
-      "type": "dingtalk",
-      "secret": "SECxxxxxxxxxx"
-    },
-    {
-      "enabled": true,
-      "url": "https://api.telegram.org/bot",
-      "type": "telegram",
-      "token": "xxx",
-      "chatId": "xxx"
-    }
-  ]
-}
-```
-
-</details>
-
-## 通知配置参数
-
-配置文件路径：`~/.claude/webhook-config.json`
-
-| 参数 | 说明 |
-|------|------|
-| `minDuration` | 最小通知时长（秒），低于此值不发送通知 |
-| `enableSystemNotification` | 是否启用系统通知 |
-| `enableVoice` | 是否启用语音播报 |
-| `enableLogging` | 是否记录日志 |
-| `autoActivateWindow` | 任务完成后是否自动激活终端窗口 |
-| `enableSessionCleanup` | 是否启用会话文件自动清理 |
-| `sessionCleanupDays` | 保留最近多少天的会话文件（默认 7 天） |
-| `enableNotificationHook` | 是否启用 Notification hook（权限请求等通知） |
-| `notificationHookTypes` | 需要通知的事件类型：`permission_prompt`、`idle_prompt`、`auth_success`、`elicitation_dialog` |
-
-## 平台支持
-
-### 系统通知
-
-| 平台 | 实现方式 | 点击激活终端 |
-|------|----------|--------------|
-| macOS | terminal-notifier | Warp / iTerm / Terminal |
-| Windows | node-notifier | Windows Terminal / VS Code |
-| Linux | node-notifier | 不支持 |
 
 ### 语音播报
 
-| 平台 | 实现方式 |
-|------|----------|
-| macOS | `say` 命令 |
-| Windows | PowerShell SpeechSynthesizer |
-| Linux | 不支持 |
+| 平台   | 支持情况        |
+|--------|-----------------|
+| macOS  | ✓ (`say` 命令)  |
+| Windows| ✓ (PowerShell)  |
+| Linux  | ✗               |
 
-<details>
-<summary>测试</summary>
+---
 
-### 使用 CLI 测试（推荐）
+## 🩺 故障排查
+
+### 看不到任何通知？
+
+1. 先运行：
+
+   ```bash
+   ccntf check
+   ccntf test
+   ```
+
+2. 检查系统通知权限：
+   - macOS：系统设置 → 通知 → 终端 / 相关 App 是否允许通知
+   - Windows / Linux：检查系统通知中心 / 桌面环境设置
+
+3. 若使用 Webhook：
+   - 确认目标平台机器人 / Webhook URL 配置正确
+   - 检查公司网络是否允许访问对应服务
+
+### 查看日志
 
 ```bash
-ccntf test              # 测试所有通知
-ccntf test stop         # 测试 Stop 事件
-ccntf test notification # 测试 Notification 事件
-```
-
-### 手动测试
-
-```bash
-# 测试 Stop 事件
-echo '{"session_id":"test","hook_event_name":"Stop","stop_reason":"completed"}' | ~/.claude/cc-notifier/dist/hook.js
-
-# 查看日志
 tail -f ~/.claude/webhook-notification.log
 ```
 
-</details>
+---
 
-<details>
-<summary>故障排查</summary>
+## 🤝 参与贡献
 
-### Webhook 发送失败
+欢迎 Issue / PR / 功能建议：
 
-```bash
-# 查看日志
-tail -20 ~/.claude/webhook-notification.log
+1. Fork 本仓库
+2. 创建特性分支：`git checkout -b feature/my-feature`
+3. 提交修改并发起 Pull Request
 
-# 手动测试
-curl -X POST -H 'Content-Type: application/json' \
-  -d '{"text":"Test"}' \
-  YOUR_WEBHOOK_URL
-```
+---
 
-### 钉钉签名失败
+## 📚 参考
 
-确保系统时间同步：
+- [Claude Code Hooks 官方文档](https://docs.anthropic.com/en/docs/claude-code/hooks)
 
-```bash
-# macOS
-sudo sntp -sS time.apple.com
-```
+---
 
-### 权限问题
-
-```bash
-chmod +x ~/.claude/cc-notifier/dist/hook.js
-```
-
-</details>
-
-## 扩展开发
-
-
-### 目录结构
-
-```
-src/
-├── cli.ts             # CLI 工具
-├── hook.ts            # 统一入口（推荐）
-├── index.ts           # Stop 事件处理
-├── types.ts           # 类型定义
-├── config.ts          # 配置管理
-├── logger.ts          # 日志模块
-├── session.ts         # 会话管理
-├── notification/      # 系统通知模块
-│   ├── system.ts      # 系统通知（跨平台）
-│   ├── terminal.ts    # 终端检测和激活
-│   └── voice.ts       # 语音播报
-└── webhook/           # Webhook 模块
-    ├── http.ts        # HTTP 请求
-    └── providers/     # 各平台实现
-        ├── slack.ts
-        ├── discord.ts
-        ├── telegram.ts
-        ├── dingtalk.ts
-        ├── feishu.ts
-        ├── wecom.ts
-        └── custom.ts
-```
-
-### 添加新的 Webhook 平台
-
-1. 在 `src/webhook/providers/` 下创建新文件，如 `pushover.ts`
-2. 实现发送函数：
-
-```typescript
-import { WebhookConfig, SessionData } from '../../types';
-import { sendWebhook } from '../http';
-
-export async function sendPushoverNotification(webhook: WebhookConfig, session: SessionData): Promise<void> {
-  // 实现发送逻辑
-}
-```
-
-3. 在 `src/webhook/index.ts` 中注册
-4. 在 `src/types.ts` 中添加类型
-
-### 添加新的通知方式
-
-在 `src/notification/` 下创建新模块，然后在 `index.ts` 中导出。
-
-## 参考文档
-
-- [Claude Code Hooks 官方文档](https://code.claude.com/docs/en/hooks)
-
-## License
+## 📄 License
 
 MIT

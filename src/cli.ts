@@ -31,7 +31,7 @@ async function getWebhookModule() {
   return webhookModule;
 }
 
-const VERSION = '0.0.6';
+const VERSION = '0.0.7';
 
 /**
  * 显示帮助信息
@@ -50,6 +50,8 @@ Commands:
                   type: stop, notification, all (默认: all)
   config          显示当前配置
   check           检查 Claude hooks 配置是否正确
+  backup [path]   备份 Claude settings.json 配置文件
+                  path: 可选的备份路径 (默认: settings.json.backup-时间戳)
   clean [type]    清理日志和会话文件
                   type: log, session, all (默认: all)
   help            显示帮助信息
@@ -65,6 +67,8 @@ Examples:
   ccntf test notification # 测试 Notification 事件通知
   ccntf config            # 显示当前配置
   ccntf check             # 检查 Claude hooks 配置
+  ccntf backup            # 备份 Claude settings.json
+  ccntf backup ~/my.bak   # 备份到指定路径
   ccntf clean             # 清理所有日志和会话文件
   ccntf clean log         # 仅清理日志文件
   ccntf clean session     # 仅清理会话文件
@@ -349,15 +353,40 @@ function installHooks(): void {
   let updated = 0;
   let skipped = 0;
   for (const [hookName, hookConfig] of Object.entries(newHooks)) {
-    if (settings.hooks[hookName]) {
-      // 检查是否已经配置了我们的 hook
-      const existingCommands = JSON.stringify(settings.hooks[hookName]);
-      if (existingCommands.includes('notifier/dist/hook.js') || existingCommands.includes('cc-hook')) {
-        skipped++;
-        continue;
-      }
+    // 检查是否已经配置了我们的 hook
+    const existingHooks = settings.hooks[hookName] || [];
+
+    // 更精确的去重检测：检查是否已存在指向我们 hook.js 的命令
+    const hasOurHook = existingHooks.some((hookGroup: any) => {
+      const hooks = hookGroup.hooks || [];
+      return hooks.some((hook: any) => {
+        const cmd = hook.command || '';
+        // 匹配各种可能的路径格式
+        return cmd.includes('notifier/dist/hook.js') ||
+               cmd.includes('notifier\\dist\\hook.js') ||
+               cmd.endsWith('cc-hook') ||
+               cmd.includes('"cc-hook"') ||
+               cmd.includes("'cc-hook'");
+      });
+    });
+
+    if (hasOurHook) {
+      // 已经配置了我们的 hook，跳过
+      console.log(`  ✓ ${hookName}: 已存在，跳过`);
+      skipped++;
+      continue;
     }
-    settings.hooks[hookName] = hookConfig;
+
+    // 追加我们的 hook 到现有配置，而不是覆盖
+    if (existingHooks.length > 0) {
+      // 用户已有其他 hook，追加到数组末尾
+      settings.hooks[hookName] = [...existingHooks, ...hookConfig];
+      console.log(`  + ${hookName}: 追加到现有配置`);
+    } else {
+      // 没有现有配置，直接设置
+      settings.hooks[hookName] = hookConfig;
+      console.log(`  ✓ ${hookName}: 已安装`);
+    }
     updated++;
   }
 
@@ -373,6 +402,45 @@ function installHooks(): void {
   }
   console.log('✓ 配置已保存到:', CLAUDE_SETTINGS_PATH);
   console.log('\n请重启 Claude Code 以使配置生效');
+}
+
+/**
+ * 备份 Claude settings.json 配置文件
+ */
+function backupSettings(customPath?: string): void {
+  console.log('备份 Claude settings.json...\n');
+
+  // 检查配置文件是否存在
+  if (!fs.existsSync(CLAUDE_SETTINGS_PATH)) {
+    console.log('✗ Claude 配置文件不存在:', CLAUDE_SETTINGS_PATH);
+    console.log('  请先运行 Claude Code 以生成配置文件');
+    return;
+  }
+
+  // 生成备份路径
+  let backupPath: string;
+  if (customPath) {
+    // 使用用户指定的路径
+    backupPath = path.resolve(customPath);
+  } else {
+    // 使用默认路径：settings.json.backup-时间戳
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+    backupPath = `${CLAUDE_SETTINGS_PATH}.backup-${timestamp}`;
+  }
+
+  try {
+    // 复制文件
+    fs.copyFileSync(CLAUDE_SETTINGS_PATH, backupPath);
+    console.log('✓ 配置文件已备份到:', backupPath);
+
+    // 显示文件大小
+    const stats = fs.statSync(backupPath);
+    const sizeKB = (stats.size / 1024).toFixed(2);
+    console.log(`  文件大小: ${sizeKB} KB`);
+  } catch (error: any) {
+    console.error('✗ 备份失败:', error.message);
+    process.exit(1);
+  }
 }
 
 /**
@@ -650,6 +718,11 @@ async function main(): Promise<void> {
 
     case 'check':
       checkHooks();
+      break;
+
+    case 'backup':
+      const backupPath = args[1];
+      backupSettings(backupPath);
       break;
 
     case 'clean':
