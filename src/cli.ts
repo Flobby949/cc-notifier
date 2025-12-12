@@ -8,6 +8,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import { execSync } from 'child_process';
 import { loadConfig, saveConfig, configExists, CONFIG_PATH, DEFAULT_CONFIG, resetConfig } from './config';
 import { SESSION_DIR } from './session';
 import { LOG_FILE } from './logger';
@@ -67,6 +68,7 @@ Commands:
                           path: 可选的备份路径 (默认: settings.json.backup-时间戳)
   clean [type]            清理日志和会话文件
                           type: log, session, all (默认: all)
+  update                  更新到最新版本
   help                    显示帮助信息
   version                 显示版本号
 
@@ -90,6 +92,7 @@ Examples:
   ccntf clean             # 清理所有日志和会话文件
   ccntf clean log         # 仅清理日志文件
   ccntf clean session     # 仅清理会话文件
+  ccntf update            # 更新到最新版本
 `);
 }
 
@@ -781,6 +784,118 @@ function clean(type: string): void {
 }
 
 /**
+ * 获取当前安装的包版本
+ */
+function getCurrentVersion(): string {
+  try {
+    const packageJsonPath = path.join(PROJECT_DIR, 'package.json');
+    const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
+    return pkg.version || 'unknown';
+  } catch {
+    return 'unknown';
+  }
+}
+
+// GitHub 仓库信息
+const GITHUB_REPO = 'Flobby949/cc-notifier';
+const GITHUB_API_URL = `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`;
+const GITHUB_DOWNLOAD_URL = `https://github.com/${GITHUB_REPO}/releases/latest/download/cc-notifier-dist.tar.gz`;
+
+/**
+ * 获取 GitHub 上的最新版本
+ */
+async function getLatestVersion(): Promise<string | null> {
+  try {
+    const response = await fetch(GITHUB_API_URL, {
+      headers: {
+        'User-Agent': 'claude-code-notifier'
+      }
+    });
+    if (!response.ok) {
+      return null;
+    }
+    const data = await response.json() as { tag_name?: string };
+    // tag_name 通常是 "v0.0.8" 格式
+    return data.tag_name?.replace(/^v/, '') || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 更新到最新版本
+ */
+async function updateSelf(): Promise<void> {
+  console.log('检查 claude-code-notifier 更新...\n');
+
+  const currentVersion = getCurrentVersion();
+  console.log(`当前版本: v${currentVersion}`);
+
+  const latestVersion = await getLatestVersion();
+  if (!latestVersion) {
+    console.log('✗ 无法获取最新版本信息');
+    console.log('  请检查网络连接或手动更新:');
+    console.log(`  curl -L ${GITHUB_DOWNLOAD_URL} | tar -xz`);
+    return;
+  }
+
+  console.log(`最新版本: v${latestVersion}`);
+
+  if (currentVersion === latestVersion) {
+    console.log('\n✓ 已是最新版本，无需更新');
+    return;
+  }
+
+  console.log(`\n发现新版本: v${currentVersion} → v${latestVersion}`);
+  console.log('开始更新...\n');
+
+  // 备份当前配置
+  const configBackupPath = CONFIG_PATH + '.backup-before-update';
+  if (fs.existsSync(CONFIG_PATH)) {
+    fs.copyFileSync(CONFIG_PATH, configBackupPath);
+    console.log('✓ 已备份配置文件');
+  }
+
+  // 下载并解压新版本
+  const parentDir = path.dirname(PROJECT_DIR);
+  const downloadCommand = `cd "${parentDir}" && curl -L ${GITHUB_DOWNLOAD_URL} | tar -xz`;
+
+  console.log('下载并解压新版本...');
+  console.log(`执行: curl -L ... | tar -xz\n`);
+
+  try {
+    execSync(downloadCommand, {
+      stdio: 'inherit',
+      timeout: 60000
+    });
+
+    console.log('\n✓ 更新完成!');
+
+    // 恢复配置文件（如果存在备份）
+    if (fs.existsSync(configBackupPath)) {
+      fs.copyFileSync(configBackupPath, CONFIG_PATH);
+      console.log('✓ 已恢复配置文件');
+    }
+
+    // 检查是否需要更新 hooks 路径
+    console.log('\n建议运行以下命令完成更新:');
+    console.log('  ccntf hooks update    # 更新 hooks 路径（如有变化）');
+    console.log('  ccntf check           # 验证配置是否正确');
+  } catch (error: any) {
+    console.error('\n✗ 更新失败:', error.message);
+    console.log('\n可以尝试手动更新:');
+    console.log(`  cd ~/.claude && curl -L ${GITHUB_DOWNLOAD_URL} | tar -xz`);
+
+    // 恢复配置
+    if (fs.existsSync(configBackupPath)) {
+      fs.copyFileSync(configBackupPath, CONFIG_PATH);
+      console.log('✓ 已恢复配置文件');
+    }
+    process.exit(1);
+  }
+}
+
+/**
  * 测试 Stop 事件通知
  */
 async function testStopNotification(): Promise<void> {
@@ -962,6 +1077,10 @@ async function main(): Promise<void> {
     case 'clean':
       const cleanType = args[1] || 'all';
       clean(cleanType);
+      break;
+
+    case 'update':
+      await updateSelf();
       break;
 
     case 'version':

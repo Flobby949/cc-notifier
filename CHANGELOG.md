@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 新增 `@inquirer/prompts` 依赖，提供交互式菜单支持
 - 交互式 Webhook 管理：添加、编辑、删除、启用/禁用 Webhook
 - 交互式 Hook 类型选择：多选方式配置 notificationHookTypes
+- **自动更新命令 `ccntf update`**，支持从 GitHub releases 检查并更新到最新版本
 
 ### Changed
 

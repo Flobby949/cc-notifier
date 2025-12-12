@@ -348,6 +348,7 @@ ccntf config reset --force
 | `ccntf check`              | 检查 Hooks 是否正确          |
 | `ccntf backup [path]`      | 备份 Claude settings.json    |
 | `ccntf clean`              | 清理日志和会话文件           |
+| `ccntf update`             | 更新到最新版本               |
 | `ccntf help`               | 查看帮助                     |
 
 ---
