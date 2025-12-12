@@ -64,4 +64,12 @@ export function configExists(): boolean {
   return fs.existsSync(CONFIG_PATH);
 }
 
+export function resetConfig(): void {
+  saveConfig(DEFAULT_CONFIG);
+}
+
+export function getDefaultConfig(): NotificationConfig {
+  return { ...DEFAULT_CONFIG };
+}
+
 export { CONFIG_PATH, DEFAULT_CONFIG };

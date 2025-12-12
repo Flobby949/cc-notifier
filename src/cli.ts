@@ -8,7 +8,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { loadConfig, saveConfig, configExists, CONFIG_PATH, DEFAULT_CONFIG } from './config';
+import { loadConfig, saveConfig, configExists, CONFIG_PATH, DEFAULT_CONFIG, resetConfig } from './config';
 import { SESSION_DIR } from './session';
 import { LOG_FILE } from './logger';
 import { SessionData } from './types';
@@ -31,7 +31,17 @@ async function getWebhookModule() {
   return webhookModule;
 }
 
-const VERSION = '0.0.7';
+const VERSION = '0.1.0';
+
+// 延迟加载交互式配置模块
+let interactiveModule: typeof import('./interactive') | null = null;
+
+async function getInteractiveModule() {
+  if (!interactiveModule) {
+    interactiveModule = await import('./interactive');
+  }
+  return interactiveModule;
+}
 
 /**
  * 显示帮助信息
@@ -43,19 +53,22 @@ Claude Code Notifier CLI v${VERSION}
 Usage: ccntf <command> [options]
 
 Commands:
-  init            初始化 webhook 配置文件
-  hooks [action]  管理 Claude hooks 配置
-                  action: show, install, print, update (默认: show)
-  test [type]     测试 hooks 通知功能
-                  type: stop, notification, all (默认: all)
-  config          显示当前配置
-  check           检查 Claude hooks 配置是否正确
-  backup [path]   备份 Claude settings.json 配置文件
-                  path: 可选的备份路径 (默认: settings.json.backup-时间戳)
-  clean [type]    清理日志和会话文件
-                  type: log, session, all (默认: all)
-  help            显示帮助信息
-  version         显示版本号
+  init                    初始化 webhook 配置文件
+  hooks [action]          管理 Claude hooks 配置
+                          action: show, install, print, update (默认: show)
+  test [type]             测试 hooks 通知功能
+                          type: stop, notification, all (默认: all)
+  config [action]         配置管理
+                          action: show, edit, set, reset (默认: show)
+  config set <key> <val>  直接设置配置项
+  config reset [--force]  重置为默认配置
+  check                   检查 Claude hooks 配置是否正确
+  backup [path]           备份 Claude settings.json 配置文件
+                          path: 可选的备份路径 (默认: settings.json.backup-时间戳)
+  clean [type]            清理日志和会话文件
+                          type: log, session, all (默认: all)
+  help                    显示帮助信息
+  version                 显示版本号
 
 Examples:
   ccntf init              # 初始化 webhook 配置文件
@@ -67,6 +80,10 @@ Examples:
   ccntf test stop         # 测试 Stop 事件通知
   ccntf test notification # 测试 Notification 事件通知
   ccntf config            # 显示当前配置
+  ccntf config edit       # 进入交互式配置模式
+  ccntf config set minDuration 30       # 设置最小通知时长
+  ccntf config set enableVoice true     # 启用语音通知
+  ccntf config reset --force            # 重置为默认配置
   ccntf check             # 检查 Claude hooks 配置
   ccntf backup            # 备份 Claude settings.json
   ccntf backup ~/my.bak   # 备份到指定路径
@@ -106,6 +123,122 @@ function showConfig(): void {
   console.log('配置文件路径:', CONFIG_PATH);
   console.log('\n当前配置:');
   console.log(JSON.stringify(config, null, 2));
+}
+
+/**
+ * 处理 config 命令
+ */
+async function handleConfigCommand(action: string, args: string[]): Promise<void> {
+  switch (action) {
+    case 'show':
+      showConfig();
+      break;
+
+    case 'edit':
+      const { startInteractiveConfig } = await getInteractiveModule();
+      await startInteractiveConfig();
+      break;
+
+    case 'set':
+      const key = args[0];
+      const value = args[1];
+      if (!key || value === undefined) {
+        console.error('用法: ccntf config set <key> <value>');
+        console.log('\n可设置的配置项:');
+        console.log('  minDuration              - 最小通知时长（秒）');
+        console.log('  enableSystemNotification - 启用系统通知 (true/false)');
+        console.log('  enableVoice              - 启用语音播报 (true/false)');
+        console.log('  enableLogging            - 启用日志记录 (true/false)');
+        console.log('  autoActivateWindow       - 自动激活窗口 (true/false)');
+        console.log('  enableSessionCleanup     - 启用会话清理 (true/false)');
+        console.log('  sessionCleanupDays       - 会话保留天数');
+        console.log('  enableNotificationHook   - 启用 Notification Hook (true/false)');
+        process.exit(1);
+      }
+      setConfigValue(key, value);
+      break;
+
+    case 'reset':
+      const force = args.includes('--force') || args.includes('-f');
+      if (!force) {
+        console.log('此操作将重置所有配置为默认值。');
+        console.log('使用 --force 确认重置。');
+        return;
+      }
+      resetConfig();
+      console.log('✓ 配置已重置为默认值');
+      console.log('配置文件路径:', CONFIG_PATH);
+      break;
+
+    default:
+      console.error(`未知的 config 操作: ${action}`);
+      console.log('可用操作: show, edit, set, reset');
+      process.exit(1);
+  }
+}
+
+/**
+ * 设置单个配置值
+ */
+function setConfigValue(key: string, value: string): void {
+  const config = loadConfig();
+
+  // 解析值
+  let parsedValue: any;
+  if (value === 'true') {
+    parsedValue = true;
+  } else if (value === 'false') {
+    parsedValue = false;
+  } else if (!isNaN(Number(value))) {
+    parsedValue = Number(value);
+  } else {
+    parsedValue = value;
+  }
+
+  // 验证并设置值
+  const validKeys = [
+    'minDuration',
+    'enableSystemNotification',
+    'enableVoice',
+    'enableLogging',
+    'autoActivateWindow',
+    'enableSessionCleanup',
+    'sessionCleanupDays',
+    'enableNotificationHook'
+  ];
+
+  if (!validKeys.includes(key)) {
+    console.error(`无效的配置项: ${key}`);
+    console.log('可设置的配置项:', validKeys.join(', '));
+    process.exit(1);
+  }
+
+  // 类型验证
+  const booleanKeys = [
+    'enableSystemNotification',
+    'enableVoice',
+    'enableLogging',
+    'autoActivateWindow',
+    'enableSessionCleanup',
+    'enableNotificationHook'
+  ];
+  const numberKeys = ['minDuration', 'sessionCleanupDays'];
+
+  if (booleanKeys.includes(key) && typeof parsedValue !== 'boolean') {
+    console.error(`配置项 ${key} 需要 boolean 值 (true/false)`);
+    process.exit(1);
+  }
+
+  if (numberKeys.includes(key) && typeof parsedValue !== 'number') {
+    console.error(`配置项 ${key} 需要数字值`);
+    process.exit(1);
+  }
+
+  // 设置值
+  (config as any)[key] = parsedValue;
+  saveConfig(config);
+
+  console.log(`✓ 已设置 ${key} = ${parsedValue}`);
 }
 
 const IS_WINDOWS = process.platform === 'win32';
@@ -813,7 +946,8 @@ async function main(): Promise<void> {
       break;
 
     case 'config':
-      showConfig();
+      const configAction = args[1] || 'show';
+      await handleConfigCommand(configAction, args.slice(2));
       break;
 
     case 'check':

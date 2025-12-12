@@ -258,12 +258,35 @@ Claude Code 的配置文件路径为：`~/.claude/settings.json`。
 
 ### 配置文件位置
 
-默认配置文件路径：`~/.claude/webhook-config.json`  
+默认配置文件路径：`~/.claude/webhook-config.json`
 可以通过运行以下命令进行初始化：
 
 ```bash
 ccntf init
 ```
+
+### 交互式配置（推荐）
+
+使用交互式菜单修改配置，无需手动编辑文件：
+
+```bash
+# 进入交互式配置模式
+ccntf config edit
+
+# 直接设置单个配置项
+ccntf config set minDuration 30
+ccntf config set enableVoice true
+
+# 重置为默认配置
+ccntf config reset --force
+```
+
+交互式配置支持：
+- 基础设置（minDuration, enableLogging）
+- 通知设置（系统通知、语音、窗口激活）
+- 会话设置（自动清理、保留天数）
+- Hook 设置（启用开关、通知类型多选）
+- Webhook 管理（添加、编辑、删除、启用/禁用）
 
 ### 通知相关配置
 
@@ -315,6 +338,9 @@ ccntf init
 | `ccntf test stop`          | 测试 Stop 事件               |
 | `ccntf test notification`  | 测试 Notification 事件       |
 | `ccntf config`             | 查看当前配置                 |
+| `ccntf config edit`        | 进入交互式配置模式           |
+| `ccntf config set <k> <v>` | 直接设置配置值               |
+| `ccntf config reset`       | 重置为默认配置               |
 | `ccntf init`               | 初始化配置文件               |
 | `ccntf hooks show`         | 查看 Hooks 配置              |
 | `ccntf hooks install`      | 安装 / 更新 Hooks            |
@@ -332,15 +358,23 @@ ccntf init
 
 | 平台   | 实现方式                       | 点击激活终端 |
 |--------|--------------------------------|--------------|
-| macOS  | `terminal-notifier` / node-notifier | 支持   |
-| Windows| node-notifier                  | 支持         |
+| macOS  | `terminal-notifier` / node-notifier | 部分支持   |
+| Windows| node-notifier                  | 部分支持         |
 | Linux  | node-notifier（基于 libnotify）| 不支持       |
 
-macOS 推荐安装 `terminal-notifier`：
+#### 点击激活终端
+
+**支持的终端**：Warp、iTerm、Terminal、Windows Terminal
+
+> 只有上述终端支持点击通知后自动激活终端窗口功能。
+
+**macOS 用户推荐安装 `terminal-notifier`**（点击通知可激活终端）：
 
 ```bash
 brew install terminal-notifier
 ```
+
+> 安装 `terminal-notifier` 后，点击通知可以自动激活对应的终端窗口（需要终端本身支持）。
 
 Linux 需要安装 `libnotify`：
 

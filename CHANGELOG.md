@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0] - 2025-12-12
+
+### Added
+
+- 交互式配置功能 `ccntf config edit`，支持通过菜单方式修改所有配置项
+- 直接设置配置命令 `ccntf config set <key> <value>`，支持快速修改单个配置
+- 重置配置命令 `ccntf config reset --force`，一键恢复默认配置
+- 新增 `@inquirer/prompts` 依赖，提供交互式菜单支持
+- 交互式 Webhook 管理：添加、编辑、删除、启用/禁用 Webhook
+- 交互式 Hook 类型选择：多选方式配置 notificationHookTypes
+
+### Changed
+
+- `ccntf config` 命令扩展为支持子命令（edit, set, reset）
+- 帮助信息更新，包含新的配置命令说明
+
 ## [0.0.7] - 2025-12-11
 
 ### Added
@@ -102,6 +118,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - 模块化重构，提升代码可维护性
 
+[0.1.0]: https://github.com/Flobby949/cc-notifier/compare/v0.0.7...v0.1.0
 [0.0.7]: https://github.com/Flobby949/cc-notifier/compare/v0.0.6...v0.0.7
 [0.0.6]: https://github.com/Flobby949/cc-notifier/compare/v0.0.5...v0.0.6
 [0.0.5]: https://github.com/Flobby949/cc-notifier/compare/v0.0.4...v0.0.5
